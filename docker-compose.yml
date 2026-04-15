@@ -1,0 +1,57 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: healthai-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: healthai_db
+      MYSQL_USER: healthai_user
+      MYSQL_PASSWORD: healthai_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: healthai-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: healthai_db
+      DB_USER: healthai_user
+      DB_PASS: healthai_pass
+      JWT_ACCESS_SECRET: change_me_access_secret
+      JWT_REFRESH_SECRET: change_me_refresh_secret
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: 587
+      SMTP_USER: no-reply@healthai.edu
+      SMTP_PASS: change_me_smtp_password
+      EMAIL_FROM: HEALTH AI <no-reply@healthai.edu>
+      FRONTEND_URL: http://localhost:3001
+      BCRYPT_SALT_ROUNDS: 12
+      DB_CONNECT_RETRIES: 30
+      DB_CONNECT_DELAY_MS: 3000
+      DB_AUTO_SYNC: "true"
+      SKIP_EMAIL_VERIFICATION: "true"
+    ports:
+      - "3001:3001"
+
+volumes:
+  db_data:
