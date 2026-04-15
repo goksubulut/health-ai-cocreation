@@ -22,8 +22,12 @@ function AuthPage() {
   const [info, setInfo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validateEduEmail = (email) =>
-    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu(\.[a-z]{2})?$/i.test(email.trim());
+  const validateEduEmail = (email) => {
+    const e = email.trim();
+    const eduIntl = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu(\.[a-z]{2})?$/i;
+    const eduTr = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu\.tr$/i;
+    return eduIntl.test(e) || eduTr.test(e);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,8 +79,8 @@ function AuthPage() {
             email: formData.email.trim(),
             password: formData.password,
             role: formData.role,
-            firstName: formData.firstName.trim(),
-            lastName: formData.lastName.trim(),
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
           }),
         });
 
@@ -85,7 +89,7 @@ function AuthPage() {
           throw new Error(data.errors?.[0] || data.message || 'Registration failed.');
         }
 
-        setInfo('Registration successful. Please verify your email, then sign in.');
+        setInfo(data.message || 'Registration successful. Please verify your email, then sign in.');
         setSearchParams({ mode: 'login' });
         setFormData({ email: formData.email, password: '', firstName: '', lastName: '', role: '' });
       }

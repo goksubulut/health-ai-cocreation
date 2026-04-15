@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const postController = require('../controllers/postController');
 const authenticate = require('../middleware/authenticate');
+const authorizeDeletePost = require('../middleware/authorizeDeletePost');
 const validate = require('../middleware/validate');
 const { createPostSchema, updatePostSchema, updateStatusSchema } = require('../validations/postSchemas');
 
@@ -29,7 +30,7 @@ router.put('/:id', validate(updatePostSchema), postController.updatePost);
 // PATCH /api/posts/:id/status — Durum değiştir
 router.patch('/:id/status', validate(updateStatusSchema), postController.updatePostStatus);
 
-// DELETE /api/posts/:id  — Sil
-router.delete('/:id', postController.deletePost);
+// DELETE /api/posts/:id  — Sil (sahip veya admin; authorizeDeletePost)
+router.delete('/:id', authorizeDeletePost, postController.deletePost);
 
 module.exports = router;

@@ -14,7 +14,7 @@ const hashIp = (ip) => {
  * @param {object} params
  * @param {number|null} params.userId
  * @param {string|null} params.role
- * @param {'LOGIN'|'FAILED_LOGIN'|'POST_CREATE'|'POST_CLOSE'} params.actionType
+ * @param {'LOGIN'|'FAILED_LOGIN'|'LOGOUT'|'REGISTER'|'EMAIL_VERIFIED'|'PASSWORD_RESET'|'POST_CREATE'|'POST_CLOSE'|'MEETING_REQUEST'|'MEETING_ACCEPT'|'MEETING_DECLINE'|'SLOT_CONFIRMED'|'MEETING_CANCEL'} params.actionType
  * @param {string|null} params.targetEntity
  * @param {number|null} params.targetId
  * @param {'success'|'failure'} params.resultStatus
@@ -37,4 +37,4 @@ const logActivity = async ({ userId, role, actionType, targetEntity, targetId, r
   }
 };
 
-module.exports = { logActivity };
+module.exports = { logActivity, hashIp };

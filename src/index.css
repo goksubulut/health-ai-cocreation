@@ -98,4 +98,13 @@
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-input bg-transparent text-foreground px-6 py-3 font-semibold transition-colors hover:bg-accent hover:text-accent-foreground;
   }
+
+  /* Fixed nav (Layout) clears content — match Dashboard pt-28 */
+  .wizard-wrapper {
+    @apply min-h-[100dvh] w-full bg-background pt-28 pb-16 px-4 sm:px-6 lg:px-16;
+  }
+
+  .wizard-container {
+    @apply mx-auto w-full max-w-3xl;
+  }
 }

@@ -1,8 +1,21 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-// Sadece kritik olaylar: LOGIN, FAILED_LOGIN, POST_CREATE, POST_CLOSE
-const LOGGABLE_ACTIONS = ['LOGIN', 'FAILED_LOGIN', 'POST_CREATE', 'POST_CLOSE'];
+const LOGGABLE_ACTIONS = [
+  'LOGIN',
+  'FAILED_LOGIN',
+  'LOGOUT',
+  'REGISTER',
+  'EMAIL_VERIFIED',
+  'PASSWORD_RESET',
+  'POST_CREATE',
+  'POST_CLOSE',
+  'MEETING_REQUEST',
+  'MEETING_ACCEPT',
+  'MEETING_DECLINE',
+  'SLOT_CONFIRMED',
+  'MEETING_CANCEL',
+];
 
 const ActivityLog = sequelize.define('ActivityLog', {
   id: {

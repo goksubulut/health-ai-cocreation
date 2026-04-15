@@ -9,6 +9,8 @@ import PostForm from './pages/PostForm';
 import Board from './pages/Board';
 import PostDetail from './pages/PostDetail';
 import MeetingRequest from './pages/MeetingRequest';
+import MeetingRequests from './pages/MeetingRequests';
+import MeetingDetail from './pages/MeetingDetail';
 import Profile from './pages/Profile';
 import AdminPanel from './pages/AdminPanel';
 import './index.css';
@@ -42,12 +44,19 @@ function App() {
             <Route
               path="post/new"
               element={
-                <ProtectedRoute allowedRoles={['healthcare']}>
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
                   <PostForm />
                 </ProtectedRoute>
               }
             />
-            <Route path="post/:id/edit" element={<PostForm />} />
+            <Route
+              path="post/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
+                  <PostForm />
+                </ProtectedRoute>
+              }
+            />
             <Route path="board" element={<Board />} />
             <Route path="post/:id" element={<PostDetail />} />
             <Route path="post/:id/meeting" element={<MeetingRequest />} />
@@ -56,6 +65,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="meetings"
+              element={
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
+                  <MeetingRequests />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="meetings/:id"
+              element={
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
+                  <MeetingDetail />
                 </ProtectedRoute>
               }
             />

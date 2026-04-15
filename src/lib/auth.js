@@ -1,4 +1,5 @@
 const AUTH_STORAGE_KEY = 'healthai_auth';
+const AUTH_CHANGED_EVENT = 'healthai-auth-changed';
 
 export function getAuth() {
   try {
@@ -14,14 +15,20 @@ export function getAuth() {
 
 export function setAuth(authPayload) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authPayload));
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
 export function clearAuth() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
 export function getDashboardPathByRole(role) {
   if (role === 'admin') return '/admin';
   if (role === 'engineer') return '/dashboard/engineer';
   return '/dashboard/healthcare';
+}
+
+export function getAuthChangedEventName() {
+  return AUTH_CHANGED_EVENT;
 }

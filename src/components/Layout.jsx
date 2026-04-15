@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { clearAuth, getAuth, getDashboardPathByRole } from '@/lib/auth';
+import {
+  clearAuth,
+  getAuth,
+  getAuthChangedEventName,
+  getDashboardPathByRole,
+} from '@/lib/auth';
 
 function Layout() {
   const { theme, setTheme } = useTheme();
-  const auth = getAuth();
+  const [auth, setAuthState] = useState(() => getAuth());
+  useEffect(() => {
+    const syncAuth = () => setAuthState(getAuth());
+    window.addEventListener(getAuthChangedEventName(), syncAuth);
+    window.addEventListener('storage', syncAuth);
+    return () => {
+      window.removeEventListener(getAuthChangedEventName(), syncAuth);
+      window.removeEventListener('storage', syncAuth);
+    };
+  }, []);
+
   const isAuthenticated = Boolean(auth);
   const dashboardPath = auth ? getDashboardPathByRole(auth.user.role) : '/auth?mode=login';
 
@@ -17,14 +32,27 @@ function Layout() {
           HEALTH<span className="italic text-primary">AI</span>
         </Link>
         <ul className="flex items-center gap-6">
+          {isAuthenticated && (
+            <li>
+              <Link
+                to={dashboardPath}
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Dashboard
+              </Link>
+            </li>
+          )}
           <li>
             <Link to="/board" className="text-sm font-medium hover:text-primary transition-colors">Discover</Link>
           </li>
           {isAuthenticated ? (
             <>
               <li>
-                <Link to={dashboardPath} className="text-sm font-medium hover:text-primary transition-colors">
-                  Dashboard
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  Profile
                 </Link>
               </li>
               <li>

@@ -6,8 +6,6 @@ const env = require('../config/env');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 const { logActivity } = require('../services/logService');
 
-// ── Token üretici yardımcılar ──────────────────────────────────
-
 const generateAccessToken = (user) =>
   jwt.sign(
     { id: user.id, role: user.role, email: user.email },
@@ -17,30 +15,36 @@ const generateAccessToken = (user) =>
 
 const generateRefreshToken = (user) =>
   jwt.sign(
-    { id: user.id },
+    { id: user.id, role: user.role, email: user.email },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshExpiry }
   );
-
-// ── Controller metodları ───────────────────────────────────────
 
 /**
  * POST /api/auth/register
  */
 const register = async (req, res) => {
   try {
-    const { email, password, role, firstName, lastName, institution, city, country, expertise } = req.body;
+    const {
+      email,
+      password,
+      role,
+      first_name: firstName,
+      last_name: lastName,
+      institution,
+      city,
+      country,
+      expertise,
+    } = req.body;
 
-    // Mevcut kullanıcı kontrolü
     const existing = await User.scope('withPassword').findOne({ where: { email } });
     if (existing) {
-      return res.status(409).json({ message: 'Bu e-posta adresi zaten kayıtlı.' });
+      return res.status(409).json({ message: 'This email is already registered.' });
     }
 
     const passwordHash = await bcrypt.hash(password, env.bcryptRounds);
-    const skipEmailVerification = env.skipEmailVerification;
-    const verifyToken = skipEmailVerification ? null : crypto.randomBytes(32).toString('hex');
-    const verifyExpiry = skipEmailVerification ? null : new Date(Date.now() + 6 * 60 * 60 * 1000); // 6 saat
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExpiry = new Date(Date.now() + 6 * 60 * 60 * 1000);
 
     const user = await User.create({
       email,
@@ -52,24 +56,26 @@ const register = async (req, res) => {
       city,
       country,
       expertise,
-      isVerified: skipEmailVerification,
+      isVerified: false,
       verifyToken,
       verifyExpiry,
     });
 
-    if (!skipEmailVerification) {
-      await sendVerificationEmail(email, verifyToken);
-    }
+    await sendVerificationEmail(user, verifyToken);
+
+    await logActivity({
+      userId: user.id,
+      role: user.role,
+      actionType: 'REGISTER',
+      resultStatus: 'success',
+      ip: req.ip,
+    });
 
     return res.status(201).json({
-      message: skipEmailVerification
-        ? 'Kayıt başarılı. Hesabınız doğrudan aktif edildi.'
-        : 'Kayıt başarılı. Lütfen e-posta adresinizi doğrulayın.',
-      userId: user.id,
+      message: 'Verification email sent. Please check your inbox.',
     });
   } catch (err) {
-    console.error('register hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -83,19 +89,32 @@ const verifyEmail = async (req, res) => {
     const user = await User.scope('withPassword').findOne({ where: { verifyToken: token } });
 
     if (!user) {
-      return res.status(400).json({ message: 'Geçersiz doğrulama bağlantısı.' });
+      return res.status(400).json({ message: 'Invalid verification link.' });
     }
 
-    if (new Date() > user.verifyExpiry) {
-      return res.status(400).json({ message: 'Doğrulama bağlantısının süresi dolmuş. Lütfen yeniden kayıt olun.' });
+    if (!user.verifyExpiry || new Date() > new Date(user.verifyExpiry)) {
+      return res.status(400).json({ message: 'Verification link has expired.' });
     }
 
-    await user.update({ isVerified: true, verifyToken: null, verifyExpiry: null });
+    await user.update({
+      isVerified: true,
+      verifyToken: null,
+      verifyExpiry: null,
+    });
 
-    return res.json({ message: 'E-posta adresiniz başarıyla doğrulandı. Artık giriş yapabilirsiniz.' });
+    await logActivity({
+      userId: user.id,
+      role: user.role,
+      actionType: 'EMAIL_VERIFIED',
+      resultStatus: 'success',
+      ip: req.ip,
+    });
+
+    return res.status(200).json({
+      message: 'Email verified successfully. You can now log in.',
+    });
   } catch (err) {
-    console.error('verifyEmail hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -111,69 +130,64 @@ const login = async (req, res) => {
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       await logActivity({ actionType: 'FAILED_LOGIN', resultStatus: 'failure', ip });
-      return res.status(401).json({ message: 'E-posta veya şifre hatalı.' });
+      return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
-    if (!user.isVerified) {
-      return res.status(403).json({ message: 'Lütfen önce e-posta adresinizi doğrulayın.' });
-    }
+    // Email verification not enforced on login (testing); re-add isVerified check before production.
 
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Hesabınız askıya alınmış. Destek ile iletişime geçin.' });
+      return res.status(403).json({ message: 'Account suspended' });
     }
 
     await user.update({ lastLogin: new Date() });
 
-    await logActivity({ userId: user.id, role: user.role, actionType: 'LOGIN', ip });
+    await logActivity({ userId: user.id, role: user.role, actionType: 'LOGIN', resultStatus: 'success', ip });
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    return res.json({
+    return res.status(200).json({
       accessToken,
       refreshToken,
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        first_name: user.firstName,
+        last_name: user.lastName,
       },
     });
   } catch (err) {
-    console.error('login hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 /**
  * POST /api/auth/refresh
- * Body: { refreshToken }
  */
 const refresh = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken) {
-      return res.status(400).json({ message: 'Refresh token gerekli.' });
-    }
 
     let decoded;
     try {
       decoded = jwt.verify(refreshToken, env.jwt.refreshSecret);
     } catch {
-      return res.status(401).json({ message: 'Geçersiz veya süresi dolmuş refresh token.' });
+      return res.status(401).json({ message: 'Invalid or expired refresh token.' });
     }
 
     const user = await User.findByPk(decoded.id);
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Kullanıcı bulunamadı veya hesap askıya alındı.' });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid or expired refresh token.' });
+    }
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account suspended' });
     }
 
     const accessToken = generateAccessToken(user);
-    return res.json({ accessToken });
+    return res.status(200).json({ accessToken });
   } catch (err) {
-    console.error('refresh hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -185,18 +199,21 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
     const user = await User.scope('withPassword').findOne({ where: { email } });
 
-    // Güvenlik: kullanıcı var mı yok mu belli etme
-    if (user && user.isVerified) {
+    if (user) {
       const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
-      await user.update({ resetToken, resetExpiry });
-      await sendPasswordResetEmail(email, resetToken);
+      const verifyExpiry = new Date(Date.now() + 60 * 60 * 1000);
+      await user.update({
+        verifyToken: resetToken,
+        verifyExpiry,
+      });
+      await sendPasswordResetEmail(user, resetToken);
     }
 
-    return res.json({ message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (kayıtlıysa).' });
+    return res.status(200).json({
+      message: 'If this email is registered, a reset link has been sent.',
+    });
   } catch (err) {
-    console.error('forgotPassword hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -208,28 +225,50 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const user = await User.scope('withPassword').findOne({ where: { resetToken: token } });
+    const user = await User.scope('withPassword').findOne({ where: { verifyToken: token } });
 
-    if (!user || new Date() > user.resetExpiry) {
-      return res.status(400).json({ message: 'Geçersiz veya süresi dolmuş sıfırlama bağlantısı.' });
+    if (!user || !user.verifyExpiry || new Date() > new Date(user.verifyExpiry)) {
+      return res.status(400).json({ message: 'Invalid or expired reset link.' });
     }
 
     const passwordHash = await bcrypt.hash(password, env.bcryptRounds);
-    await user.update({ passwordHash, resetToken: null, resetExpiry: null });
+    await user.update({
+      passwordHash,
+      verifyToken: null,
+      verifyExpiry: null,
+    });
 
-    return res.json({ message: 'Şifreniz başarıyla güncellendi.' });
+    await logActivity({
+      userId: user.id,
+      role: user.role,
+      actionType: 'PASSWORD_RESET',
+      resultStatus: 'success',
+      ip: req.ip,
+    });
+
+    return res.status(200).json({ message: 'Password reset successfully.' });
   } catch (err) {
-    console.error('resetPassword hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 /**
  * POST /api/auth/logout
- * (Stateless JWT — frontend token'ı siler; ileride blacklist eklenebilir)
  */
 const logout = async (req, res) => {
-  return res.json({ message: 'Başarıyla çıkış yapıldı.' });
+  try {
+    await logActivity({
+      userId: req.user.id,
+      role: req.user.role,
+      actionType: 'LOGOUT',
+      resultStatus: 'success',
+      ip: req.ip,
+    });
+
+    return res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
 };
 
 module.exports = { register, verifyEmail, login, refresh, forgotPassword, resetPassword, logout };

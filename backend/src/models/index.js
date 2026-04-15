@@ -1,6 +1,7 @@
 const User = require('./User');
 const Post = require('./Post');
 const MeetingRequest = require('./MeetingRequest');
+const TimeSlot = require('./TimeSlot');
 const NdaAcceptance = require('./NdaAcceptance');
 const ActivityLog = require('./ActivityLog');
 
@@ -22,6 +23,12 @@ MeetingRequest.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
 User.hasMany(MeetingRequest, { foreignKey: 'postOwnerId', as: 'receivedRequests' });
 MeetingRequest.belongsTo(User, { foreignKey: 'postOwnerId', as: 'postOwner' });
 
+// MeetingRequest → TimeSlots
+MeetingRequest.hasMany(TimeSlot, { foreignKey: 'meetingRequestId', as: 'timeSlots' });
+TimeSlot.belongsTo(MeetingRequest, { foreignKey: 'meetingRequestId', as: 'meetingRequest' });
+User.hasMany(TimeSlot, { foreignKey: 'proposedBy', as: 'proposedTimeSlots' });
+TimeSlot.belongsTo(User, { foreignKey: 'proposedBy', as: 'proposer' });
+
 // User → NdaAcceptances
 User.hasMany(NdaAcceptance, { foreignKey: 'userId', as: 'ndaAcceptances' });
 NdaAcceptance.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -34,4 +41,4 @@ NdaAcceptance.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
 User.hasMany(ActivityLog, { foreignKey: 'userId', as: 'activityLogs' });
 ActivityLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-module.exports = { User, Post, MeetingRequest, NdaAcceptance, ActivityLog };
+module.exports = { User, Post, MeetingRequest, TimeSlot, NdaAcceptance, ActivityLog };

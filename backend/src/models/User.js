@@ -14,14 +14,15 @@ const User = sequelize.define('User', {
     validate: {
       isEmail: true,
       isEduEmail(value) {
-        const eduRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu(\.[a-z]{2})?$/i;
         const blocked = ['gmail.edu', 'yahoo.edu', 'hotmail.edu', 'outlook.edu'];
         const domain = value.split('@')[1]?.toLowerCase();
-        if (!eduRegex.test(value)) {
-          throw new Error('Sadece kurumsal .edu e-posta adresleri kabul edilir.');
-        }
         if (blocked.includes(domain)) {
-          throw new Error('Bu e-posta sağlayıcısına izin verilmiyor.');
+          throw new Error('This email domain is not allowed.');
+        }
+        const eduIntl = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu(\.[a-z]{2})?$/i;
+        const eduTr = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu\.tr$/i;
+        if (!eduIntl.test(value) && !eduTr.test(value)) {
+          throw new Error('Only institutional .edu or .edu.tr email addresses are accepted.');
         }
       },
     },

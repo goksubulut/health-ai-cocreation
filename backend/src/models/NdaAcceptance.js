@@ -18,7 +18,11 @@ const NdaAcceptance = sequelize.define('NdaAcceptance', {
     references: { model: 'posts', key: 'id' },
   },
   ipHash: {
-    type: DataTypes.STRING(64), // SHA-256 hex
+    type: DataTypes.STRING(64), // SHA-256 hex (ip_address hashed)
+    allowNull: true,
+  },
+  acceptedAt: {
+    type: DataTypes.DATE,
     allowNull: true,
   },
 }, {

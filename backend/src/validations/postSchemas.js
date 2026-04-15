@@ -1,56 +1,55 @@
 const Joi = require('joi');
 
+const PROJECT_STAGES = ['idea', 'concept_validation', 'prototype', 'pilot', 'pre_deployment'];
+const COMMITMENT_LEVELS = ['advisor', 'co_founder', 'research_partner'];
+
 const createPostSchema = Joi.object({
-  title: Joi.string().min(5).max(255).required().messages({
-    'string.min': 'Başlık en az 5 karakter olmalıdır.',
-  }),
-  domain: Joi.string().max(100).required(),
-  description: Joi.string().min(20).max(5000).required().messages({
-    'string.min': 'Açıklama en az 20 karakter olmalıdır.',
-  }),
-  requiredExpertise: Joi.string().max(255).optional().allow('', null),
-  projectStage: Joi.string()
-    .valid('idea', 'concept_validation', 'prototype', 'pilot', 'pre_deployment')
+  title: Joi.string().min(5).max(255).required(),
+  domain: Joi.string().min(1).max(100).required(),
+  description: Joi.string().min(50).max(5000).required(),
+  required_expertise: Joi.string().max(255).optional().allow('', null),
+  project_stage: Joi.string()
+    .valid(...PROJECT_STAGES)
     .optional()
     .allow(null),
-  commitmentLevel: Joi.string()
-    .valid('advisor', 'co_founder', 'research_partner')
+  commitment_level: Joi.string()
+    .valid(...COMMITMENT_LEVELS)
     .optional()
     .allow(null),
   confidentiality: Joi.string().valid('public', 'meeting_only').default('public'),
+  status: Joi.string().valid('draft', 'active').default('draft'),
   city: Joi.string().max(100).optional().allow('', null),
   country: Joi.string().max(100).optional().allow('', null),
-  expiryDate: Joi.date().iso().greater('now').optional().allow(null).messages({
-    'date.greater': 'Son geçerlilik tarihi gelecekte bir tarih olmalıdır.',
+  expiry_date: Joi.date().iso().greater('now').optional().allow(null).messages({
+    'date.greater': 'expiry_date must be in the future.',
   }),
-  autoClose: Joi.boolean().default(false),
-  status: Joi.string().valid('draft', 'active').default('draft'),
+  auto_close: Joi.boolean().optional(),
 });
 
 const updatePostSchema = Joi.object({
   title: Joi.string().min(5).max(255).optional(),
-  domain: Joi.string().max(100).optional(),
-  description: Joi.string().min(20).max(5000).optional(),
-  requiredExpertise: Joi.string().max(255).optional().allow('', null),
-  projectStage: Joi.string()
-    .valid('idea', 'concept_validation', 'prototype', 'pilot', 'pre_deployment')
+  domain: Joi.string().min(1).max(100).optional(),
+  description: Joi.string().min(50).max(5000).optional(),
+  required_expertise: Joi.string().max(255).optional().allow('', null),
+  project_stage: Joi.string()
+    .valid(...PROJECT_STAGES)
     .optional()
     .allow(null),
-  commitmentLevel: Joi.string()
-    .valid('advisor', 'co_founder', 'research_partner')
+  commitment_level: Joi.string()
+    .valid(...COMMITMENT_LEVELS)
     .optional()
     .allow(null),
   confidentiality: Joi.string().valid('public', 'meeting_only').optional(),
   city: Joi.string().max(100).optional().allow('', null),
   country: Joi.string().max(100).optional().allow('', null),
-  expiryDate: Joi.date().iso().greater('now').optional().allow(null),
-  autoClose: Joi.boolean().optional(),
-}).min(1); // En az bir alan güncellenmeli
+  expiry_date: Joi.date().iso().greater('now').optional().allow(null).messages({
+    'date.greater': 'expiry_date must be in the future.',
+  }),
+  auto_close: Joi.boolean().optional(),
+}).min(1);
 
 const updateStatusSchema = Joi.object({
-  status: Joi.string()
-    .valid('draft', 'active', 'meeting_scheduled', 'partner_found', 'expired')
-    .required(),
+  status: Joi.string().valid('draft', 'active', 'partner_found').required(),
 });
 
 module.exports = { createPostSchema, updatePostSchema, updateStatusSchema };

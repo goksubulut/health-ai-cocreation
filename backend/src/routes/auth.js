@@ -1,27 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { loginLimiter, registerLimiter } = require('../middleware/rateLimiter');
 const validate = require('../middleware/validate');
 const authenticate = require('../middleware/authenticate');
 const {
   registerSchema,
   loginSchema,
+  refreshSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } = require('../validations/authSchemas');
 
 // POST /api/auth/register
-router.post('/register', registerLimiter, validate(registerSchema), authController.register);
+router.post('/register', validate(registerSchema), authController.register);
 
 // GET /api/auth/verify-email/:token
 router.get('/verify-email/:token', authController.verifyEmail);
 
 // POST /api/auth/login
-router.post('/login', loginLimiter, validate(loginSchema), authController.login);
+router.post('/login', validate(loginSchema), authController.login);
 
 // POST /api/auth/refresh
-router.post('/refresh', authController.refresh);
+router.post('/refresh', validate(refreshSchema), authController.refresh);
 
 // POST /api/auth/logout (korumalı)
 router.post('/logout', authenticate, authController.logout);

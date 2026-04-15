@@ -15,65 +15,184 @@ const send = async ({ to, subject, html }) => {
   try {
     await transporter.sendMail({ from: env.smtp.from, to, subject, html });
   } catch (err) {
-    console.error('Email gönderilemedi:', err.message);
-    // Email hatası uygulamayı durdurmamalı
+    // Email failures must not crash the request.
   }
 };
 
-const sendVerificationEmail = (to, token) => {
-  const url = `${env.frontendUrl}/verify-email?token=${token}`;
+const escapeHtml = (s) =>
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const formatDateTime = (d) => {
+  if (!d) return '';
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) return '';
+  return dt.toISOString();
+};
+
+const sendVerificationEmail = (user, token) => {
+  const url = `${env.frontendUrl}/verify-email/${token}`;
   return send({
-    to,
-    subject: 'HEALTH AI — E-posta Adresinizi Doğrulayın',
+    to: user.email,
+    subject: 'Verify your HEALTH AI account',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1a73e8">HEALTH AI</h2>
-        <p>Kayıt işleminizi tamamlamak için aşağıdaki butona tıklayın:</p>
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:22px;font-weight:700;color:#58a6ff;margin-bottom:8px">HEALTH AI</div>
+        <p style="margin:0 0 16px;line-height:1.6">Hi${user.firstName ? ` ${escapeHtml(user.firstName)}` : ''},</p>
+        <p style="margin:0 0 24px;line-height:1.6">Please confirm your email address to activate your account.</p>
         <a href="${url}" style="
-          display:inline-block;background:#1a73e8;color:#fff;
-          padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold
-        ">E-posta Adresimi Doğrula</a>
-        <p style="color:#666;font-size:13px;margin-top:16px">
-          Bu bağlantı 6 saat geçerlidir. Eğer kaydolmadıysanız bu emaili görmezden gelin.
+          display:inline-block;background:#238636;color:#fff;
+          padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600
+        ">Verify email</a>
+        <p style="color:#8b949e;font-size:13px;margin-top:24px;line-height:1.6">
+          This link expires in 6 hours. If you did not create an account, you can ignore this message.
         </p>
       </div>
     `,
   });
 };
 
-const sendPasswordResetEmail = (to, token) => {
-  const url = `${env.frontendUrl}/reset-password?token=${token}`;
+const sendPasswordResetEmail = (user, token) => {
+  const url = `${env.frontendUrl}/reset-password/${token}`;
   return send({
-    to,
-    subject: 'HEALTH AI — Şifre Sıfırlama',
+    to: user.email,
+    subject: 'Reset your HEALTH AI password',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1a73e8">HEALTH AI</h2>
-        <p>Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:</p>
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:22px;font-weight:700;color:#58a6ff;margin-bottom:8px">HEALTH AI</div>
+        <p style="margin:0 0 16px;line-height:1.6">Hi${user.firstName ? ` ${escapeHtml(user.firstName)}` : ''},</p>
+        <p style="margin:0 0 24px;line-height:1.6">We received a request to reset your password.</p>
         <a href="${url}" style="
-          display:inline-block;background:#e53935;color:#fff;
-          padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold
-        ">Şifremi Sıfırla</a>
-        <p style="color:#666;font-size:13px;margin-top:16px">
-          Bu bağlantı 1 saat geçerlidir. Şifre sıfırlama talebinde bulunmadıysanız bu emaili görmezden gelin.
+          display:inline-block;background:#da3633;color:#fff;
+          padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600
+        ">Reset password</a>
+        <p style="color:#8b949e;font-size:13px;margin-top:24px;line-height:1.6">
+          This link expires in 1 hour. If you did not request a reset, you can ignore this message.
         </p>
       </div>
     `,
   });
 };
 
-const sendMeetingRequestNotification = (to, requesterName, postTitle) => {
+const userDisplayName = (u) => {
+  if (!u) return 'Someone';
+  const fn = u.firstName || u.first_name;
+  const ln = u.lastName || u.last_name;
+  if (fn || ln) return `${fn || ''} ${ln || ''}`.trim();
+  return u.email || 'Someone';
+};
+
+/** @param {object} postOwner User with email */
+/** @param {object} requester User */
+/** @param {object} post Post */
+const sendMeetingRequestNotification = (postOwner, requester, post) => {
+  const title = post.title || post.get?.('title');
   return send({
-    to,
-    subject: 'HEALTH AI — Yeni Toplantı Talebi',
+    to: postOwner.email,
+    subject: 'HEALTH AI — New meeting request',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1a73e8">HEALTH AI</h2>
-        <p><strong>${requesterName}</strong> adlı kullanıcı <strong>"${postTitle}"</strong> ilanınıza toplantı talebinde bulundu.</p>
-        <p>Platforma giriş yaparak talebi inceleyebilir ve yanıtlayabilirsiniz.</p>
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+        <p style="margin:0 0 12px;line-height:1.6"><strong>${escapeHtml(userDisplayName(requester))}</strong> requested a meeting about your post:</p>
+        <p style="margin:0 0 16px;font-weight:600">${escapeHtml(title)}</p>
+        <p style="color:#8b949e;font-size:13px">Sign in to review and respond.</p>
       </div>
     `,
   });
 };
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendMeetingRequestNotification };
+const sendMeetingAcceptedNotification = (requester, post) => {
+  const title = post.title || post.get?.('title');
+  return send({
+    to: requester.email,
+    subject: 'HEALTH AI — Meeting request accepted',
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+        <p style="margin:0 0 12px;line-height:1.6">Your meeting request was <strong>accepted</strong> for:</p>
+        <p style="margin:0 0 16px;font-weight:600">${escapeHtml(title)}</p>
+        <p style="color:#8b949e;font-size:13px">Propose time slots to schedule the meeting.</p>
+      </div>
+    `,
+  });
+};
+
+const sendMeetingDeclinedNotification = (requester, post) => {
+  const title = post.title || post.get?.('title');
+  return send({
+    to: requester.email,
+    subject: 'HEALTH AI — Meeting request declined',
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+        <p style="margin:0 0 12px;line-height:1.6">Your meeting request was <strong>declined</strong> for:</p>
+        <p style="margin:0;font-weight:600">${escapeHtml(title)}</p>
+      </div>
+    `,
+  });
+};
+
+const sendSlotProposedNotification = (recipient, meetingRequest, slots) => {
+  const rows = (slots || [])
+    .map((s) => {
+      const dt = s.slotDatetime || s.slot_datetime;
+      return `<li style="margin:6px 0">${escapeHtml(formatDateTime(dt))}</li>`;
+    })
+    .join('');
+  return send({
+    to: recipient.email,
+    subject: 'HEALTH AI — Meeting time slots proposed',
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+        <p style="margin:0 0 12px;line-height:1.6">New time slot(s) were proposed for meeting request #${meetingRequest.id}.</p>
+        <ul style="margin:0;padding-left:20px;color:#e8edf5">${rows}</ul>
+        <p style="color:#8b949e;font-size:13px;margin-top:16px">Sign in to confirm one slot.</p>
+      </div>
+    `,
+  });
+};
+
+const sendMeetingScheduledNotification = (requester, postOwner, confirmedSlot, post) => {
+  const title = post.title || post.get?.('title');
+  const when = formatDateTime(confirmedSlot);
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+      <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+      <p style="margin:0 0 12px;line-height:1.6">Your meeting is <strong>scheduled</strong>.</p>
+      <p style="margin:0 0 8px;font-weight:600">${escapeHtml(title)}</p>
+      <p style="margin:0;color:#7ee787;font-size:15px"><strong>${escapeHtml(when)}</strong> (UTC)</p>
+    </div>
+  `;
+  return Promise.all([
+    send({ to: requester.email, subject: 'HEALTH AI — Meeting scheduled', html }),
+    send({ to: postOwner.email, subject: 'HEALTH AI — Meeting scheduled', html }),
+  ]);
+};
+
+const sendMeetingCancelledNotification = (recipient, meetingRequest) => {
+  return send({
+    to: recipient.email,
+    subject: 'HEALTH AI — Meeting cancelled',
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#0d1117;color:#e8edf5;padding:32px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:20px;font-weight:700;color:#58a6ff;margin-bottom:12px">HEALTH AI</div>
+        <p style="margin:0;line-height:1.6">Meeting request #${meetingRequest.id} has been <strong>cancelled</strong>.</p>
+      </div>
+    `,
+  });
+};
+
+module.exports = {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendMeetingRequestNotification,
+  sendMeetingAcceptedNotification,
+  sendMeetingDeclinedNotification,
+  sendSlotProposedNotification,
+  sendMeetingScheduledNotification,
+  sendMeetingCancelledNotification,
+};

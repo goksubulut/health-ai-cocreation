@@ -1,99 +1,220 @@
-const { MeetingRequest, Post, NdaAcceptance, User } = require('../models');
-const { sendMeetingRequestNotification } = require('../services/emailService');
+const { Op } = require('sequelize');
+const {
+  MeetingRequest,
+  Post,
+  NdaAcceptance,
+  User,
+  TimeSlot,
+} = require('../models');
+const { sequelize } = require('../config/database');
+const { logActivity, hashIp } = require('../services/logService');
+const {
+  sendMeetingRequestNotification,
+  sendMeetingAcceptedNotification,
+  sendMeetingDeclinedNotification,
+  sendSlotProposedNotification,
+  sendMeetingScheduledNotification,
+  sendMeetingCancelledNotification,
+} = require('../services/emailService');
 
-// Talebe taraf olup olmadığını kontrol et
+const USER_ATTRS = ['id', 'email', 'firstName', 'lastName', 'institution', 'city', 'country'];
+const POST_ATTRS_DETAIL = ['id', 'title', 'domain', 'description', 'status', 'userId', 'confidentiality'];
+
 const isParty = (meeting, userId) =>
   meeting.requesterId === userId || meeting.postOwnerId === userId;
 
+const serializeUser = (u) => {
+  if (!u) return undefined;
+  const x = u.get ? u.get({ plain: true }) : u;
+  return {
+    id: x.id,
+    email: x.email,
+    first_name: x.firstName,
+    last_name: x.lastName,
+    institution: x.institution,
+    city: x.city,
+    country: x.country,
+  };
+};
+
+const serializePost = (p) => {
+  if (!p) return undefined;
+  const x = p.get ? p.get({ plain: true }) : p;
+  return {
+    id: x.id,
+    user_id: x.userId,
+    title: x.title,
+    domain: x.domain,
+    description: x.description,
+    status: x.status,
+    confidentiality: x.confidentiality,
+  };
+};
+
+const serializeTimeSlot = (s) => {
+  const x = s.get ? s.get({ plain: true }) : s;
+  return {
+    id: x.id,
+    meeting_request_id: x.meetingRequestId,
+    proposed_by: x.proposedBy,
+    slot_datetime: x.slotDatetime,
+    is_selected: x.isSelected,
+  };
+};
+
+const serializeMeeting = (m) => {
+  const x = m.get ? m.get({ plain: true }) : m;
+  const out = {
+    id: x.id,
+    post_id: x.postId,
+    requester_id: x.requesterId,
+    post_owner_id: x.postOwnerId,
+    message: x.message,
+    nda_accepted: x.ndaAccepted,
+    nda_accepted_at: x.ndaAcceptedAt,
+    status: x.status,
+    proposed_time: x.proposedTime,
+    confirmed_slot: x.confirmedSlot,
+    created_at: x.createdAt,
+    updated_at: x.updatedAt,
+  };
+  if (x.post) out.post = serializePost(x.post);
+  if (x.requester) out.requester = serializeUser(x.requester);
+  if (x.postOwner) out.post_owner = serializeUser(x.postOwner);
+  if (x.timeSlots) out.time_slots = x.timeSlots.map((t) => serializeTimeSlot(t));
+  return out;
+};
+
+const otherPartyId = (meeting, userId) =>
+  meeting.requesterId === userId ? meeting.postOwnerId : meeting.requesterId;
+
 // ── POST /api/meetings ─────────────────────────────────────────
-// Toplantı talebi gönder (NDA kabul zorunlu)
 const createMeetingRequest = async (req, res) => {
   try {
-    const { postId, message, ndaAccepted } = req.body;
+    const { post_id: postId, message, nda_accepted: ndaAcceptedBody } = req.body;
     const requesterId = req.user.id;
 
     const post = await Post.findByPk(postId, {
-      include: [{ model: User, as: 'owner', attributes: ['id', 'email', 'firstName', 'lastName'] }],
+      include: [{ model: User, as: 'owner', attributes: USER_ATTRS }],
     });
 
-    if (!post) return res.status(404).json({ message: 'İlan bulunamadı.' });
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found.' });
+    }
 
     if (post.status !== 'active') {
-      return res.status(400).json({ message: 'Bu ilana artık talep gönderilemiyor.' });
+      return res.status(400).json({ error: 'Post is not accepting requests' });
     }
 
     if (post.userId === requesterId) {
-      return res.status(400).json({ message: 'Kendi ilanınıza talep gönderemezsiniz.' });
+      return res.status(400).json({ error: 'Cannot request a meeting on your own post' });
     }
 
-    // Aynı ilana birden fazla talep engelle
     const existing = await MeetingRequest.findOne({
-      where: { postId, requesterId, status: ['pending', 'accepted', 'scheduled'] },
+      where: {
+        postId,
+        requesterId,
+        status: { [Op.in]: ['pending', 'accepted', 'scheduled'] },
+      },
     });
     if (existing) {
-      return res.status(409).json({ message: 'Bu ilana zaten aktif bir talebiniz var.' });
+      return res.status(400).json({ error: 'You already have an active request for this post' });
+    }
+
+    let ndaAccepted = false;
+    let ndaAcceptedAt = null;
+
+    if (post.confidentiality === 'meeting_only') {
+      if (ndaAcceptedBody !== true) {
+        return res.status(400).json({ error: 'NDA acceptance required for this post' });
+      }
+      const [ndaRecord, created] = await NdaAcceptance.findOrCreate({
+        where: { userId: requesterId, postId },
+        defaults: {
+          ipHash: hashIp(req.ip),
+          acceptedAt: new Date(),
+        },
+      });
+      if (!created) {
+        await ndaRecord.update({
+          acceptedAt: new Date(),
+          ipHash: hashIp(req.ip),
+        });
+      }
+      ndaAccepted = true;
+      ndaAcceptedAt = new Date();
     }
 
     const meeting = await MeetingRequest.create({
       postId,
       requesterId,
       postOwnerId: post.userId,
-      message,
-      ndaAccepted: true,
-      ndaAcceptedAt: new Date(),
+      message: message ?? null,
+      ndaAccepted,
+      ndaAcceptedAt,
+      status: 'pending',
     });
 
-    // NDA kaydı oluştur
-    await NdaAcceptance.create({
+    const requester = await User.findByPk(requesterId, { attributes: USER_ATTRS });
+
+    await sendMeetingRequestNotification(post.owner, requester, post);
+
+    await logActivity({
       userId: requesterId,
-      postId,
-      ipHash: null, // İsteğe bağlı: req.ip ile doldurulabilir
-    }).catch(() => {}); // unique constraint ihlalini sessizce geç
+      role: req.user.role,
+      actionType: 'MEETING_REQUEST',
+      targetEntity: 'meeting_request',
+      targetId: meeting.id,
+      ip: req.ip,
+    });
 
-    // Posta sahibine email bildirimi
-    const requester = await User.findByPk(requesterId, { attributes: ['firstName', 'lastName'] });
-    await sendMeetingRequestNotification(
-      post.owner.email,
-      `${requester.firstName} ${requester.lastName}`,
-      post.title
-    );
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        { model: TimeSlot, as: 'timeSlots' },
+      ],
+    });
 
-    return res.status(201).json({ message: 'Toplantı talebi gönderildi.', meeting });
+    return res.status(201).json({ data: serializeMeeting(full) });
   } catch (err) {
-    console.error('createMeetingRequest hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 // ── GET /api/meetings ──────────────────────────────────────────
-// Gelen ve giden talepler
 const getMyMeetings = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { type = 'all', status: statusFilter } = req.query;
 
-    const meetings = await MeetingRequest.findAll({
-      where: {
-        [require('sequelize').Op.or]: [
-          { requesterId: userId },
-          { postOwnerId: userId },
-        ],
-      },
+    const where = {};
+    if (type === 'sent') {
+      where.requesterId = userId;
+    } else if (type === 'received') {
+      where.postOwnerId = userId;
+    } else {
+      where[Op.or] = [{ requesterId: userId }, { postOwnerId: userId }];
+    }
+
+    if (statusFilter) {
+      where.status = statusFilter;
+    }
+
+    const rows = await MeetingRequest.findAll({
+      where,
       include: [
-        { model: Post, as: 'post', attributes: ['id', 'title', 'domain', 'status'] },
-        { model: User, as: 'requester', attributes: ['id', 'firstName', 'lastName', 'institution'] },
-        { model: User, as: 'postOwner', attributes: ['id', 'firstName', 'lastName', 'institution'] },
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
       ],
       order: [['createdAt', 'DESC']],
     });
 
-    // Gelen / giden olarak ayır
-    const sent     = meetings.filter(m => m.requesterId === userId);
-    const received = meetings.filter(m => m.postOwnerId === userId);
-
-    return res.json({ sent, received });
+    return res.json({ data: rows.map((m) => serializeMeeting(m)) });
   } catch (err) {
-    console.error('getMyMeetings hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -102,139 +223,322 @@ const getMeetingById = async (req, res) => {
   try {
     const meeting = await MeetingRequest.findByPk(req.params.id, {
       include: [
-        { model: Post, as: 'post', attributes: ['id', 'title', 'domain', 'status', 'userId'] },
-        { model: User, as: 'requester', attributes: ['id', 'firstName', 'lastName', 'institution', 'city'] },
-        { model: User, as: 'postOwner', attributes: ['id', 'firstName', 'lastName', 'institution', 'city'] },
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
       ],
     });
 
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
-
-    if (!isParty(meeting, req.user.id)) {
-      return res.status(403).json({ message: 'Bu talebe erişim yetkiniz yok.' });
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
     }
 
-    return res.json({ meeting });
+    if (!isParty(meeting, req.user.id)) {
+      return res.status(403).json({ message: 'You do not have access to this meeting request.' });
+    }
+
+    return res.json({ data: serializeMeeting(meeting) });
   } catch (err) {
-    console.error('getMeetingById hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 // ── PATCH /api/meetings/:id/accept ────────────────────────────
 const acceptMeetingRequest = async (req, res) => {
   try {
-    const meeting = await MeetingRequest.findByPk(req.params.id);
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
+    const meeting = await MeetingRequest.findByPk(req.params.id, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
 
     if (meeting.postOwnerId !== req.user.id) {
-      return res.status(403).json({ message: 'Bu talebi sadece ilan sahibi kabul edebilir.' });
+      return res.status(403).json({ message: 'Only the post owner can accept this request.' });
     }
+
     if (meeting.status !== 'pending') {
-      return res.status(400).json({ message: `Talep zaten '${meeting.status}' durumunda.` });
+      return res.status(400).json({ error: 'Only pending requests can be accepted.' });
     }
 
     await meeting.update({ status: 'accepted' });
-    return res.json({ message: 'Talep kabul edildi.', meeting });
+
+    const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
+    if (requester && meeting.post) {
+      await sendMeetingAcceptedNotification(requester, meeting.post);
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      role: req.user.role,
+      actionType: 'MEETING_ACCEPT',
+      targetEntity: 'meeting_request',
+      targetId: meeting.id,
+      ip: req.ip,
+    });
+
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
+      ],
+    });
+
+    return res.json({ data: serializeMeeting(full) });
   } catch (err) {
-    console.error('acceptMeetingRequest hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 // ── PATCH /api/meetings/:id/decline ───────────────────────────
 const declineMeetingRequest = async (req, res) => {
   try {
-    const meeting = await MeetingRequest.findByPk(req.params.id);
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
+    const meeting = await MeetingRequest.findByPk(req.params.id, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
 
     if (meeting.postOwnerId !== req.user.id) {
-      return res.status(403).json({ message: 'Bu talebi sadece ilan sahibi reddedebilir.' });
+      return res.status(403).json({ message: 'Only the post owner can decline this request.' });
     }
+
     if (!['pending', 'accepted'].includes(meeting.status)) {
-      return res.status(400).json({ message: `Talep '${meeting.status}' durumunda olduğundan reddedilemiyor.` });
+      return res.status(400).json({ error: 'This meeting request cannot be declined in its current state.' });
     }
 
     await meeting.update({ status: 'declined' });
-    return res.json({ message: 'Talep reddedildi.', meeting });
-  } catch (err) {
-    console.error('declineMeetingRequest hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
-  }
-};
 
-// ── PATCH /api/meetings/:id/propose-time ──────────────────────
-const proposeTime = async (req, res) => {
-  try {
-    const meeting = await MeetingRequest.findByPk(req.params.id);
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
-
-    if (!isParty(meeting, req.user.id)) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' });
-    }
-    if (!['accepted'].includes(meeting.status)) {
-      return res.status(400).json({ message: 'Zaman önerisi yapabilmek için talep önce kabul edilmeli.' });
+    const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
+    if (requester && meeting.post) {
+      await sendMeetingDeclinedNotification(requester, meeting.post);
     }
 
-    await meeting.update({ proposedTime: req.body.proposedTime });
-    return res.json({ message: 'Toplantı zamanı önerildi.', meeting });
-  } catch (err) {
-    console.error('proposeTime hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
-  }
-};
-
-// ── PATCH /api/meetings/:id/confirm-time ──────────────────────
-const confirmTime = async (req, res) => {
-  try {
-    const meeting = await MeetingRequest.findByPk(req.params.id, {
-      include: [{ model: Post, as: 'post', attributes: ['id', 'status'] }],
+    await logActivity({
+      userId: req.user.id,
+      role: req.user.role,
+      actionType: 'MEETING_DECLINE',
+      targetEntity: 'meeting_request',
+      targetId: meeting.id,
+      ip: req.ip,
     });
 
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
+      ],
+    });
+
+    return res.json({ data: serializeMeeting(full) });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+// ── POST /api/meetings/:id/slots ──────────────────────────────
+const proposeSlots = async (req, res) => {
+  try {
+    const meeting = await MeetingRequest.findByPk(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
 
     if (!isParty(meeting, req.user.id)) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' });
+      return res.status(403).json({ message: 'You do not have access to this meeting request.' });
     }
+
     if (meeting.status !== 'accepted') {
-      return res.status(400).json({ message: 'Zaman onayı için talep kabul edilmiş olmalı.' });
+      return res.status(400).json({ error: 'Meeting must be accepted before proposing time slots.' });
     }
 
-    await meeting.update({ confirmedSlot: req.body.confirmedSlot, status: 'scheduled' });
-
-    // İlanın durumunu meeting_scheduled'a güncelle
-    if (meeting.post && meeting.post.status === 'active') {
-      await Post.update(
-        { status: 'meeting_scheduled' },
-        { where: { id: meeting.postId } }
-      );
+    const existingCount = await TimeSlot.count({ where: { meetingRequestId: meeting.id } });
+    const incoming = req.body.slots || [];
+    if (existingCount + incoming.length > 5) {
+      return res.status(400).json({ error: 'A maximum of 5 time slots is allowed per meeting request.' });
     }
 
-    return res.json({ message: 'Toplantı zamanı onaylandı.', meeting });
+    const created = await sequelize.transaction(async (t) => {
+      const rows = [];
+      for (const slot of incoming) {
+        const dt = slot.slot_datetime;
+        const row = await TimeSlot.create(
+          {
+            meetingRequestId: meeting.id,
+            proposedBy: req.user.id,
+            slotDatetime: new Date(dt),
+            isSelected: false,
+          },
+          { transaction: t }
+        );
+        rows.push(row);
+      }
+      return rows;
+    });
+
+    const recipientId = otherPartyId(meeting, req.user.id);
+    const recipient = await User.findByPk(recipientId, { attributes: USER_ATTRS });
+    if (recipient) {
+      await sendSlotProposedNotification(recipient, meeting, created);
+    }
+
+    return res.status(201).json({ data: created.map((c) => serializeTimeSlot(c)) });
   } catch (err) {
-    console.error('confirmTime hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+// ── PATCH /api/meetings/:id/slots/:slotId/confirm ─────────────
+const confirmSlot = async (req, res) => {
+  try {
+    const meetingId = parseInt(req.params.id, 10);
+    const slotId = parseInt(req.params.slotId, 10);
+
+    const slot = await TimeSlot.findOne({
+      where: { id: slotId, meetingRequestId: meetingId },
+    });
+    if (!slot) {
+      return res.status(404).json({ message: 'Time slot not found.' });
+    }
+
+    if (slot.proposedBy === req.user.id) {
+      return res.status(403).json({ message: 'You cannot confirm a time slot you proposed.' });
+    }
+
+    const meeting = await MeetingRequest.findByPk(meetingId, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
+
+    if (!isParty(meeting, req.user.id)) {
+      return res.status(403).json({ message: 'You do not have access to this meeting request.' });
+    }
+
+    if (meeting.status !== 'accepted') {
+      return res.status(400).json({ error: 'Meeting must be accepted before confirming a slot.' });
+    }
+
+    await sequelize.transaction(async (t) => {
+      await TimeSlot.update(
+        { isSelected: false },
+        { where: { meetingRequestId: meeting.id }, transaction: t }
+      );
+      await slot.update({ isSelected: true }, { transaction: t });
+      await meeting.update(
+        {
+          confirmedSlot: slot.slotDatetime,
+          status: 'scheduled',
+        },
+        { transaction: t }
+      );
+      if (meeting.post && meeting.post.status === 'active') {
+        await Post.update({ status: 'meeting_scheduled' }, { where: { id: meeting.postId }, transaction: t });
+      }
+    });
+
+    const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
+    const postOwner = await User.findByPk(meeting.postOwnerId, { attributes: USER_ATTRS });
+    const post = await Post.findByPk(meeting.postId);
+
+    if (requester && postOwner && post) {
+      await sendMeetingScheduledNotification(requester, postOwner, slot.slotDatetime, post);
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      role: req.user.role,
+      actionType: 'SLOT_CONFIRMED',
+      targetEntity: 'time_slot',
+      targetId: slot.id,
+      ip: req.ip,
+    });
+
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
+      ],
+    });
+
+    return res.json({ data: serializeMeeting(full) });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
 // ── DELETE /api/meetings/:id ───────────────────────────────────
 const cancelMeetingRequest = async (req, res) => {
   try {
-    const meeting = await MeetingRequest.findByPk(req.params.id);
-    if (!meeting) return res.status(404).json({ message: 'Talep bulunamadı.' });
+    const meeting = await MeetingRequest.findByPk(req.params.id, {
+      include: [{ model: Post, as: 'post', attributes: ['id', 'status'] }],
+    });
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
 
     if (!isParty(meeting, req.user.id)) {
-      return res.status(403).json({ message: 'Bu talebi iptal etme yetkiniz yok.' });
-    }
-    if (['declined', 'cancelled'].includes(meeting.status)) {
-      return res.status(400).json({ message: 'Talep zaten iptal edilmiş veya reddedilmiş.' });
+      return res.status(403).json({ message: 'You cannot cancel this meeting request.' });
     }
 
+    if (!['pending', 'accepted', 'scheduled'].includes(meeting.status)) {
+      return res.status(400).json({ message: 'This meeting request cannot be cancelled.' });
+    }
+
+    const otherId = otherPartyId(meeting, req.user.id);
+    const recipient = await User.findByPk(otherId, { attributes: USER_ATTRS });
+
     await meeting.update({ status: 'cancelled' });
-    return res.json({ message: 'Talep iptal edildi.' });
+
+    if (meeting.post && meeting.post.status === 'meeting_scheduled') {
+      await Post.update({ status: 'active' }, { where: { id: meeting.postId } });
+    }
+
+    if (recipient) {
+      await sendMeetingCancelledNotification(recipient, meeting);
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      role: req.user.role,
+      actionType: 'MEETING_CANCEL',
+      targetEntity: 'meeting_request',
+      targetId: meeting.id,
+      ip: req.ip,
+    });
+
+    return res.json({ message: 'Meeting request cancelled.' });
   } catch (err) {
-    console.error('cancelMeetingRequest hatası:', err);
-    return res.status(500).json({ message: 'Sunucu hatası.' });
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
@@ -244,7 +548,7 @@ module.exports = {
   getMeetingById,
   acceptMeetingRequest,
   declineMeetingRequest,
-  proposeTime,
-  confirmTime,
+  proposeSlots,
+  confirmSlot,
   cancelMeetingRequest,
 };

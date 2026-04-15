@@ -1,23 +1,23 @@
 const Joi = require('joi');
 
 const createMeetingRequestSchema = Joi.object({
-  postId: Joi.number().integer().positive().required(),
-  message: Joi.string().max(1000).optional().allow('', null),
-  ndaAccepted: Joi.boolean().valid(true).required().messages({
-    'any.only': 'Toplantı talebinde bulunmak için NDA\'yı kabul etmelisiniz.',
-  }),
+  post_id: Joi.number().integer().positive().required(),
+  message: Joi.string().max(2000).optional().allow('', null),
+  nda_accepted: Joi.boolean().optional(),
 });
 
-const proposeTimeSchema = Joi.object({
-  proposedTime: Joi.date().iso().greater('now').required().messages({
-    'date.greater': 'Önerilen zaman gelecekte bir tarih/saat olmalıdır.',
-  }),
+const proposeSlotsSchema = Joi.object({
+  slots: Joi.array()
+    .items(
+      Joi.object({
+        slot_datetime: Joi.date().iso().greater('now').required().messages({
+          'date.greater': 'Each slot must be in the future.',
+        }),
+      })
+    )
+    .min(1)
+    .max(5)
+    .required(),
 });
 
-const confirmTimeSchema = Joi.object({
-  confirmedSlot: Joi.date().iso().greater('now').required().messages({
-    'date.greater': 'Onaylanan zaman gelecekte bir tarih/saat olmalıdır.',
-  }),
-});
-
-module.exports = { createMeetingRequestSchema, proposeTimeSchema, confirmTimeSchema };
+module.exports = { createMeetingRequestSchema, proposeSlotsSchema };
