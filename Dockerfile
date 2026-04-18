@@ -2,7 +2,7 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY src ./src
 COPY public ./public
@@ -17,7 +17,7 @@ FROM node:20-alpine AS backend-deps
 
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 FROM node:20-alpine
 
