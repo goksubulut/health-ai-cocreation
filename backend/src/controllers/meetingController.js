@@ -102,7 +102,7 @@ const createMeetingRequest = async (req, res) => {
       return res.status(404).json({ message: 'Post not found.' });
     }
 
-    if (post.status !== 'active') {
+    if (!['active', 'meeting_scheduled'].includes(post.status)) {
       return res.status(400).json({ error: 'Post is not accepting requests' });
     }
 
@@ -269,6 +269,10 @@ const acceptMeetingRequest = async (req, res) => {
 
     await meeting.update({ status: 'accepted' });
 
+    if (meeting.post && meeting.post.status === 'active') {
+      await Post.update({ status: 'meeting_scheduled' }, { where: { id: meeting.postId } });
+    }
+
     const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
     if (requester && meeting.post) {
       await sendMeetingAcceptedNotification(requester, meeting.post);
@@ -365,12 +369,14 @@ const proposeSlots = async (req, res) => {
       return res.status(404).json({ message: 'Meeting request not found.' });
     }
 
-    if (!isParty(meeting, req.user.id)) {
-      return res.status(403).json({ message: 'You do not have access to this meeting request.' });
+    if (meeting.requesterId !== req.user.id) {
+      return res.status(403).json({ message: 'Only the requester can propose time slots.' });
     }
 
-    if (meeting.status !== 'accepted') {
-      return res.status(400).json({ error: 'Meeting must be accepted before proposing time slots.' });
+    if (!['pending', 'accepted'].includes(meeting.status)) {
+      return res
+        .status(400)
+        .json({ error: 'Time slots cannot be added in the current meeting state.' });
     }
 
     const existingCount = await TimeSlot.count({ where: { meetingRequestId: meeting.id } });
@@ -404,6 +410,111 @@ const proposeSlots = async (req, res) => {
     }
 
     return res.status(201).json({ data: created.map((c) => serializeTimeSlot(c)) });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+// ── PATCH /api/meetings/:id/slots/:slotId ─────────────────────
+const updateSlot = async (req, res) => {
+  try {
+    const meetingId = parseInt(req.params.id, 10);
+    const slotId = parseInt(req.params.slotId, 10);
+
+    const meeting = await MeetingRequest.findByPk(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
+
+    if (meeting.requesterId !== req.user.id) {
+      return res.status(403).json({ message: 'Only the requester can edit time slots.' });
+    }
+
+    if (!['pending', 'accepted'].includes(meeting.status)) {
+      return res.status(400).json({ error: 'Time slots cannot be edited in the current meeting state.' });
+    }
+
+    const slot = await TimeSlot.findOne({
+      where: { id: slotId, meetingRequestId: meetingId },
+    });
+    if (!slot) {
+      return res.status(404).json({ message: 'Time slot not found.' });
+    }
+
+    if (slot.proposedBy !== req.user.id) {
+      return res.status(403).json({ message: 'You can only edit slots you proposed.' });
+    }
+
+    const dt = req.body.slot_datetime;
+    await slot.update({ slotDatetime: new Date(dt) });
+
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
+      ],
+    });
+
+    return res.json({ data: serializeMeeting(full) });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+// ── DELETE /api/meetings/:id/slots/:slotId ────────────────────
+const deleteSlot = async (req, res) => {
+  try {
+    const meetingId = parseInt(req.params.id, 10);
+    const slotId = parseInt(req.params.slotId, 10);
+
+    const meeting = await MeetingRequest.findByPk(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting request not found.' });
+    }
+
+    if (meeting.requesterId !== req.user.id) {
+      return res.status(403).json({ message: 'Only the requester can delete time slots.' });
+    }
+
+    if (!['pending', 'accepted'].includes(meeting.status)) {
+      return res.status(400).json({ error: 'Time slots cannot be deleted in the current meeting state.' });
+    }
+
+    const slot = await TimeSlot.findOne({
+      where: { id: slotId, meetingRequestId: meetingId },
+    });
+    if (!slot) {
+      return res.status(404).json({ message: 'Time slot not found.' });
+    }
+
+    if (slot.proposedBy !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete slots you proposed.' });
+    }
+
+    await slot.destroy();
+
+    const full = await MeetingRequest.findByPk(meeting.id, {
+      include: [
+        { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
+        { model: User, as: 'requester', attributes: USER_ATTRS },
+        { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
+      ],
+    });
+
+    return res.json({ data: serializeMeeting(full) });
   } catch (err) {
     return res.status(500).json({ message: 'Internal server error.' });
   }
@@ -549,6 +660,8 @@ module.exports = {
   acceptMeetingRequest,
   declineMeetingRequest,
   proposeSlots,
+  updateSlot,
+  deleteSlot,
   confirmSlot,
   cancelMeetingRequest,
 };

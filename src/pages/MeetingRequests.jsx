@@ -80,8 +80,9 @@ function MeetingRequests() {
           </p>
           <h1 className="font-serif text-4xl lg:text-5xl">Meeting requests</h1>
           <p className="text-muted-foreground max-w-2xl">
-            Incoming requests on your listings, and outgoing requests you sent. Open a
-            request to accept or decline, manage NDA context, and negotiate time slots.
+            Incoming requests on your listings, and outgoing requests you sent. Propose time
+            slots from Discovery when you express interest; here you can open a request to
+            accept or decline and confirm a time once the post owner has accepted.
           </p>
         </motion.header>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -98,6 +98,8 @@ function PostForm() {
     location: '',
     expiration: '',
   });
+  const [originalStatus, setOriginalStatus] = useState('draft');
+  const submitActionRef = useRef('active');
 
   useEffect(() => {
     if (!isEdit || !editId) {
@@ -123,6 +125,7 @@ function PostForm() {
         }
         const p = json.data;
         if (!p) throw new Error('Invalid response.');
+        setOriginalStatus(p.status || 'draft');
         setFormData(mapPostApiToForm(p));
       } catch (e) {
         setLoadError(e instanceof Error ? e.message : 'Could not load post.');
@@ -140,6 +143,8 @@ function PostForm() {
     e.preventDefault();
     setSubmitError('');
     if (step < 3) return handleNext();
+
+    const submitAction = submitActionRef.current;
 
     const auth = getAuth();
     if (!auth?.accessToken) {
@@ -163,7 +168,7 @@ function PostForm() {
       required_expertise: EXPERTISE_LABELS[formData.roleNeeded] || formData.roleNeeded,
       project_stage: projectStage,
       confidentiality: formData.privacy === 'confidential' ? 'meeting_only' : 'public',
-      status: 'active',
+      status: submitAction,
       city: city || undefined,
       country: country || undefined,
     };
@@ -175,7 +180,6 @@ function PostForm() {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        delete body.status;
         const res = await fetch(`/api/posts/${editId}`, {
           method: 'PUT',
           headers: {
@@ -192,6 +196,21 @@ function PostForm() {
             data.error ||
             'Could not update post.';
           throw new Error(msg);
+        }
+
+        if (originalStatus !== submitAction) {
+          const patchRes = await fetch(`/api/posts/${editId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${auth.accessToken}`,
+            },
+            body: JSON.stringify({ status: submitAction }),
+          });
+          if (!patchRes.ok) {
+            const patchData = await patchRes.json().catch(() => ({}));
+            console.error('Could not update status:', patchData);
+          }
         }
       } else {
         const res = await fetch('/api/posts', {
@@ -515,24 +534,31 @@ function PostForm() {
                 </button>
               )}
               <div className="min-w-[1rem] flex-1" />
-              <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                {step < 3 ? (
-                  <>
-                    Next step <ArrowRight size={18} />
-                  </>
-                ) : (
-                  <>
-                    {isSubmitting
-                      ? isEdit
-                        ? 'Saving…'
-                        : 'Creating…'
-                      : isEdit
-                        ? 'Save changes'
-                        : 'Create post'}{' '}
-                    {!isSubmitting && <CheckCircle2 size={18} />}
-                  </>
-                )}
-              </button>
+              {step < 3 ? (
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  Next step <ArrowRight size={18} />
+                </button>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    className="btn-secondary"
+                    disabled={isSubmitting}
+                    onClick={() => { submitActionRef.current = 'draft'; }}
+                  >
+                    Save as Draft
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmitting}
+                    onClick={() => { submitActionRef.current = 'active'; }}
+                  >
+                    {isEdit ? 'Save Changes & Publish' : 'Publish'}
+                    {!isSubmitting && <CheckCircle2 size={18} className="ml-1" />}
+                  </button>
+                </div>
+              )}
             </div>
           </form>
         </motion.div>

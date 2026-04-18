@@ -20,4 +20,14 @@ const proposeSlotsSchema = Joi.object({
     .required(),
 });
 
-module.exports = { createMeetingRequestSchema, proposeSlotsSchema };
+const updateSlotSchema = Joi.object({
+  slot_datetime: Joi.date().iso().greater('now').required().messages({
+    'date.greater': 'Slot must be in the future.',
+  }),
+});
+
+module.exports = {
+  createMeetingRequestSchema,
+  proposeSlotsSchema,
+  updateSlotSchema,
+};

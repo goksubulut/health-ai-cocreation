@@ -9,6 +9,7 @@ import {
   Target,
   CheckCircle2,
   Loader2,
+  CalendarClock,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 
@@ -31,6 +32,10 @@ function PostDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState('');
   const [interestSent, setInterestSent] = useState(false);
+  const [flowStep, setFlowStep] = useState('interest');
+  const [createdMeetingId, setCreatedMeetingId] = useState(null);
+  const [slotInputs, setSlotInputs] = useState(['']);
+  const [slotBusy, setSlotBusy] = useState(false);
 
   const postIdNum = parseInt(id, 10);
   const meshIdx =
@@ -77,7 +82,7 @@ function PostDetail() {
   const isMeetingOnly = post?.confidentiality === 'meeting_only';
   const canRequest =
     post &&
-    post.status === 'active' &&
+    ['active', 'meeting_scheduled'].includes(post.status) &&
     !isOwner &&
     uid != null;
 
@@ -96,7 +101,7 @@ function PostDetail() {
     }
     if (!canRequest || !auth?.accessToken) return;
     if (isMeetingOnly && !ndaAccepted) {
-      setSubmitErr('Please review and agree to the NDA terms to proceed.');
+      setSubmitErr('Please review and agree to the NDA terms before proposing time slots.');
       return;
     }
     setSubmitting(true);
@@ -122,14 +127,59 @@ function PostDetail() {
         const msg = json.error || json.message || 'Could not send meeting request.';
         throw new Error(msg);
       }
+      const mid = json.data?.id;
+      if (mid == null) {
+        throw new Error('Meeting created but no id returned.');
+      }
+      setCreatedMeetingId(mid);
       setInterestSent(true);
-      setTimeout(() => {
-        navigate('/meetings?tab=outgoing');
-      }, 1200);
+      setFlowStep('slots');
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : 'Request failed.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitProposedSlots = async () => {
+    if (!auth?.accessToken || createdMeetingId == null) return;
+    const slots = slotInputs
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((raw) => {
+        const dt = new Date(raw);
+        if (Number.isNaN(dt.getTime())) return null;
+        return { slot_datetime: dt.toISOString() };
+      })
+      .filter(Boolean);
+    if (slots.length === 0) {
+      setSubmitErr('Add at least one valid date and time.');
+      return;
+    }
+    setSlotBusy(true);
+    setSubmitErr('');
+    try {
+      const res = await fetch(`/api/meetings/${createdMeetingId}/slots`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ slots }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = json.error || json.message || 'Could not save time slots.';
+        throw new Error(msg);
+      }
+      setFlowStep('success');
+      setTimeout(() => {
+        navigate('/meetings?tab=outgoing');
+      }, 1600);
+    } catch (e) {
+      setSubmitErr(e instanceof Error ? e.message : 'Could not save time slots.');
+    } finally {
+      setSlotBusy(false);
     }
   };
 
@@ -305,15 +355,27 @@ function PostDetail() {
           >
             <div className="mb-8">
               <h3 className="font-sans font-bold text-2xl mb-2 text-foreground tracking-tight">
-                Express interest
+                {flowStep === 'slots' || flowStep === 'success'
+                  ? 'Propose meeting times'
+                  : 'Express interest'}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Initiate contact with <strong className="text-foreground">{ownerDisplay}</strong> to propose
-                a technical review meeting.
+                {flowStep === 'slots' || flowStep === 'success' ? (
+                  <>
+                    Add up to five time options for{' '}
+                    <strong className="text-foreground">{ownerDisplay}</strong>. They will be notified after
+                    you save.
+                  </>
+                ) : (
+                  <>
+                    Initiate contact with <strong className="text-foreground">{ownerDisplay}</strong> to
+                    propose a technical review meeting.
+                  </>
+                )}
               </p>
             </div>
 
-            {post.status !== 'active' && (
+            {!['active', 'meeting_scheduled'].includes(post.status) && (
               <p className="mb-4 text-sm text-amber-600 dark:text-amber-400">
                 This post is not accepting new meeting requests ({post.status}).
               </p>
@@ -323,7 +385,7 @@ function PostDetail() {
               <p className="mb-4 text-sm text-muted-foreground">This is your post — you cannot request a meeting on it.</p>
             )}
 
-            {isMeetingOnly && canRequest && (
+            {flowStep === 'interest' && isMeetingOnly && canRequest && (
               <div className="mb-6 bg-background rounded-xl border border-border p-5">
                 <label className="flex items-start gap-4 cursor-pointer group">
                   <div className="relative mt-1">
@@ -360,7 +422,7 @@ function PostDetail() {
               </div>
             )}
 
-            {canRequest && (
+            {flowStep === 'interest' && canRequest && (
               <div className="mb-6">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
                   Message (optional)
@@ -372,8 +434,59 @@ function PostDetail() {
                   maxLength={2000}
                   placeholder="Briefly introduce yourself or your interest…"
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  disabled={interestSent || submitting}
+                  disabled={submitting || interestSent}
                 />
+              </div>
+            )}
+
+            {flowStep === 'slots' && canRequest && (
+              <div className="mb-6 space-y-3">
+                <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-background/80 p-3 text-xs text-muted-foreground">
+                  <CalendarClock className="shrink-0 mt-0.5 text-primary" size={16} />
+                  <span>
+                    You can list up to five slots in total. Use &quot;Add another slot&quot; for more options,
+                    then save with Propose slots.
+                  </span>
+                </div>
+                {slotInputs.map((val, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      type="datetime-local"
+                      value={val}
+                      onChange={(e) => {
+                        const next = [...slotInputs];
+                        next[i] = e.target.value;
+                        setSlotInputs(next);
+                      }}
+                      className="flex h-11 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    />
+                    {slotInputs.length > 1 && (
+                      <button
+                        type="button"
+                        className="px-3 text-sm text-muted-foreground hover:text-foreground"
+                        onClick={() => setSlotInputs(slotInputs.filter((_, j) => j !== i))}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {slotInputs.filter(Boolean).length < 5 && (
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-primary hover:underline"
+                    onClick={() => setSlotInputs([...slotInputs, ''])}
+                  >
+                    + Add another slot
+                  </button>
+                )}
+              </div>
+            )}
+
+            {flowStep === 'success' && (
+              <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 size={18} />
+                Time slots saved. Redirecting to your outgoing requests…
               </div>
             )}
 
@@ -381,34 +494,47 @@ function PostDetail() {
               <p className="mb-4 text-sm text-destructive">{submitErr}</p>
             )}
 
-            <button
-              type="button"
-              className={`w-full relative overflow-hidden rounded-full py-4 px-6 text-sm font-bold uppercase tracking-widest shadow-lg transition-all duration-300 flex items-center justify-center gap-3 ${
-                interestSent
-                  ? 'bg-green-500 text-white cursor-default'
-                  : 'bg-primary text-primary-foreground hover:opacity-90 hover:shadow-primary/25 disabled:opacity-50'
-              }`}
-              onClick={handleInterest}
-              disabled={interestSent || submitting || !canRequest || post.status !== 'active'}
-            >
-              {interestSent ? (
-                <motion.div
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="flex items-center gap-2"
-                >
-                  <CheckCircle2 size={18} /> Request sent — redirecting…
-                </motion.div>
-              ) : submitting ? (
-                <>
-                  <Loader2 className="animate-spin" size={16} /> Sending…
-                </>
-              ) : (
-                <>
-                  Transmit proposal <Send size={16} />
-                </>
-              )}
-            </button>
+            {flowStep === 'interest' && (
+              <button
+                type="button"
+                className={`w-full relative overflow-hidden rounded-full py-4 px-6 text-sm font-bold uppercase tracking-widest shadow-lg transition-all duration-300 flex items-center justify-center gap-3 ${
+                  interestSent
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-primary text-primary-foreground hover:opacity-90 hover:shadow-primary/25 disabled:opacity-50'
+                }`}
+                onClick={handleInterest}
+                disabled={submitting || interestSent || !canRequest || !['active', 'meeting_scheduled'].includes(post.status)}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} /> Sending…
+                  </>
+                ) : (
+                  <>
+                    Transmit proposal <Send size={16} />
+                  </>
+                )}
+              </button>
+            )}
+
+            {flowStep === 'slots' && (
+              <button
+                type="button"
+                className="w-full relative overflow-hidden rounded-full py-4 px-6 text-sm font-bold uppercase tracking-widest shadow-lg transition-all duration-300 flex items-center justify-center gap-3 bg-primary text-primary-foreground hover:opacity-90 hover:shadow-primary/25 disabled:opacity-50"
+                onClick={submitProposedSlots}
+                disabled={slotBusy || !canRequest || !['active', 'meeting_scheduled'].includes(post.status)}
+              >
+                {slotBusy ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} /> Saving…
+                  </>
+                ) : (
+                  <>
+                    Propose slots <CalendarClock size={16} />
+                  </>
+                )}
+              </button>
+            )}
           </motion.div>
         </motion.div>
       </div>

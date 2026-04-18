@@ -78,7 +78,7 @@ const mapUpdateBodyToModel = (body) => {
 
 const STATUS_TRANSITIONS = {
   draft: ['active'],
-  active: ['partner_found', 'draft'],
+  active: ['partner_found', 'draft', 'meeting_scheduled'],
   meeting_scheduled: ['partner_found', 'active'],
 };
 
@@ -98,7 +98,7 @@ const getPosts = async (req, res) => {
       limit = 10,
     } = req.query;
 
-    const where = { status: 'active' };
+    const where = { status: { [Op.in]: ['active', 'meeting_scheduled'] } };
 
     if (domain) where.domain = { [Op.like]: `%${domain}%` };
     if (city) where.city = { [Op.like]: `%${city}%` };
@@ -197,7 +197,7 @@ const getMatches = async (req, res) => {
     }
 
     const where = {
-      status: 'active',
+      status: { [Op.in]: ['active', 'meeting_scheduled'] },
       userId: { [Op.ne]: req.user.id },
       city: currentUser.city,
     };
@@ -324,6 +324,14 @@ const updatePost = async (req, res) => {
     }
 
     const updates = mapUpdateBodyToModel(req.body);
+    
+    if (req.body.status && req.body.status !== post.status) {
+      if (!isValidStatusTransition(post.status, req.body.status)) {
+        return res.status(400).json({ message: 'Invalid status transition.' });
+      }
+      updates.status = req.body.status;
+    }
+
     await post.update(updates);
 
     const refreshed = await Post.findByPk(post.id, {

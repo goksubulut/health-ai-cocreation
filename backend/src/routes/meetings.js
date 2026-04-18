@@ -6,6 +6,7 @@ const validate = require('../middleware/validate');
 const {
   createMeetingRequestSchema,
   proposeSlotsSchema,
+  updateSlotSchema,
 } = require('../validations/meetingSchemas');
 
 router.use(authenticate);
@@ -24,6 +25,16 @@ router.patch('/:id/decline', meetingController.declineMeetingRequest);
 
 // POST /api/meetings/:id/slots
 router.post('/:id/slots', validate(proposeSlotsSchema), meetingController.proposeSlots);
+
+// PATCH /api/meetings/:id/slots/:slotId
+router.patch(
+  '/:id/slots/:slotId',
+  validate(updateSlotSchema),
+  meetingController.updateSlot
+);
+
+// DELETE /api/meetings/:id/slots/:slotId
+router.delete('/:id/slots/:slotId', meetingController.deleteSlot);
 
 // PATCH /api/meetings/:id/slots/:slotId/confirm
 router.patch('/:id/slots/:slotId/confirm', meetingController.confirmSlot);

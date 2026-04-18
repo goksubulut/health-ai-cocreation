@@ -15,4 +15,26 @@ const deleteAccountSchema = Joi.object({
   }),
 });
 
-module.exports = { updateProfileSchema, deleteAccountSchema };
+const newPasswordRules = Joi.string()
+  .min(8)
+  .pattern(/^(?=.*[A-Z])(?=.*[0-9])/)
+  .required()
+  .messages({
+    'string.min': 'Password must be at least 8 characters long.',
+    'string.pattern.base': 'Password must contain at least one uppercase letter and one digit.',
+    'any.required': 'New password is required.',
+  });
+
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required().messages({
+    'any.required': 'Current password is required.',
+  }),
+  newPassword: newPasswordRules,
+}).custom((value, helpers) => {
+  if (value.newPassword === value.currentPassword) {
+    return helpers.message('New password must be different from your current password.');
+  }
+  return value;
+});
+
+module.exports = { updateProfileSchema, deleteAccountSchema, changePasswordSchema };

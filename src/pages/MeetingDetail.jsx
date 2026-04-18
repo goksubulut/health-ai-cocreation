@@ -28,6 +28,8 @@ function MeetingDetail() {
   const [err, setErr] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [slotInputs, setSlotInputs] = useState(['']);
+  const [editingSlotId, setEditingSlotId] = useState(null);
+  const [editSlotValue, setEditSlotValue] = useState('');
 
   const auth = getAuth();
   const token = auth?.accessToken;
@@ -111,9 +113,16 @@ function MeetingDetail() {
     }
   };
 
+  const toDatetimeLocalValue = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const submitProposedSlots = async (e) => {
     e.preventDefault();
-    if (!token || !id) return;
+    if (!token || !id || !isRequester) return;
     const slots = slotInputs
       .map((s) => s.trim())
       .filter(Boolean)
@@ -141,6 +150,57 @@ function MeetingDetail() {
       await load();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not propose slots.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const saveEditedSlot = async (slotId) => {
+    if (!token || !id) return;
+    const dt = new Date(editSlotValue);
+    if (Number.isNaN(dt.getTime())) {
+      setErr('Invalid date and time.');
+      return;
+    }
+    setActionBusy(true);
+    setErr('');
+    try {
+      const res = await fetch(`/api/meetings/${id}/slots/${slotId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ slot_datetime: dt.toISOString() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || json.message || 'Could not update slot.');
+      setM(json.data);
+      setEditingSlotId(null);
+      setEditSlotValue('');
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Could not update slot.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const removeSlot = async (slotId) => {
+    if (!token || !id) return;
+    if (!window.confirm('Remove this time slot?')) return;
+    setActionBusy(true);
+    setErr('');
+    try {
+      const res = await fetch(`/api/meetings/${id}/slots/${slotId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || json.message || 'Could not remove slot.');
+      setM(json.data);
+      if (editingSlotId === slotId) {
+        setEditingSlotId(null);
+        setEditSlotValue('');
+      }
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Could not remove slot.');
     } finally {
       setActionBusy(false);
     }
@@ -322,50 +382,119 @@ function MeetingDetail() {
               </div>
             )}
 
-            {m.status === 'accepted' && (
+            {['pending', 'accepted'].includes(m.status) && (
               <section className="space-y-4 rounded-2xl border border-border/60 bg-card/50 p-6">
                 <h2 className="font-serif text-xl">Time slots</h2>
-                <p className="text-sm text-muted-foreground">
-                  Propose up to five slots in total. The other party picks one to confirm.
-                  You cannot confirm a slot you proposed.
-                </p>
+                {isOwner && (
+                  <p className="text-sm text-muted-foreground">
+                    The requester proposes times (up to five). After you accept this request, you can confirm
+                    one slot to schedule the meeting. You do not propose new slots here.
+                  </p>
+                )}
+                {isRequester && (
+                  <p className="text-sm text-muted-foreground">
+                    Propose up to five slots in total. The post owner confirms one after accepting your
+                    request. You can edit or remove your proposed slots below while the meeting is still
+                    pending or accepted.
+                  </p>
+                )}
 
                 {slots.length > 0 && (
                   <ul className="space-y-2">
                     {slots.map((s) => {
                       const canConfirm =
+                        isOwner &&
                         uid != null &&
                         s.proposed_by !== uid &&
                         m.status === 'accepted';
+                      const requesterCanEdit =
+                        isRequester &&
+                        uid != null &&
+                        s.proposed_by === uid &&
+                        ['pending', 'accepted'].includes(m.status);
                       return (
                         <li
                           key={s.id}
                           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-background/70 px-4 py-3"
                         >
-                          <span className="text-sm">
-                            {new Date(s.slot_datetime).toLocaleString()}
-                            <span className="text-muted-foreground ml-2">
-                              (proposed by{' '}
-                              {s.proposed_by === m.requester_id
-                                ? 'requester'
-                                : 'owner'}
-                              )
-                            </span>
-                          </span>
-                          {s.is_selected && (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                              Selected
-                            </span>
-                          )}
-                          {canConfirm && !s.is_selected && (
-                            <button
-                              type="button"
-                              disabled={actionBusy}
-                              onClick={() => confirmSlot(s.id)}
-                              className="text-sm font-medium text-primary hover:underline"
-                            >
-                              Confirm this slot
-                            </button>
+                          {editingSlotId === s.id ? (
+                            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
+                              <input
+                                type="datetime-local"
+                                value={editSlotValue}
+                                onChange={(e) => setEditSlotValue(e.target.value)}
+                                className="flex h-11 flex-1 min-w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              />
+                              <button
+                                type="button"
+                                disabled={actionBusy}
+                                onClick={() => saveEditedSlot(s.id)}
+                                className="text-sm font-medium text-primary hover:underline"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                disabled={actionBusy}
+                                onClick={() => {
+                                  setEditingSlotId(null);
+                                  setEditSlotValue('');
+                                }}
+                                className="text-sm text-muted-foreground hover:text-foreground"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-sm">
+                                {new Date(s.slot_datetime).toLocaleString()}
+                                <span className="text-muted-foreground ml-2">
+                                  (proposed by{' '}
+                                  {s.proposed_by === m.requester_id ? 'requester' : 'owner'})
+                                </span>
+                              </span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {s.is_selected && (
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                    Selected
+                                  </span>
+                                )}
+                                {requesterCanEdit && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={actionBusy}
+                                      onClick={() => {
+                                        setEditingSlotId(s.id);
+                                        setEditSlotValue(toDatetimeLocalValue(s.slot_datetime));
+                                      }}
+                                      className="text-sm font-medium text-primary hover:underline"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={actionBusy}
+                                      onClick={() => removeSlot(s.id)}
+                                      className="text-sm text-destructive hover:underline"
+                                    >
+                                      Remove
+                                    </button>
+                                  </>
+                                )}
+                                {canConfirm && !s.is_selected && (
+                                  <button
+                                    type="button"
+                                    disabled={actionBusy}
+                                    onClick={() => confirmSlot(s.id)}
+                                    className="text-sm font-medium text-primary hover:underline"
+                                  >
+                                    Confirm this slot
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           )}
                         </li>
                       );
@@ -373,49 +502,61 @@ function MeetingDetail() {
                   </ul>
                 )}
 
-                <form onSubmit={submitProposedSlots} className="space-y-3 pt-2">
-                  {slotInputs.map((val, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="datetime-local"
-                        value={val}
-                        onChange={(e) => {
-                          const next = [...slotInputs];
-                          next[i] = e.target.value;
-                          setSlotInputs(next);
-                        }}
-                        className="flex h-11 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      />
-                      {slotInputs.length > 1 && (
-                        <button
-                          type="button"
-                          className="px-3 text-muted-foreground hover:text-foreground"
-                          onClick={() =>
-                            setSlotInputs(slotInputs.filter((_, j) => j !== i))
-                          }
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {slots.length + slotInputs.filter(Boolean).length < 5 && (
-                    <button
-                      type="button"
-                      className="text-sm text-primary hover:underline"
-                      onClick={() => setSlotInputs([...slotInputs, ''])}
+                {isRequester &&
+                  ['pending', 'accepted'].includes(m.status) &&
+                  slots.length + slotInputs.filter(Boolean).length < 5 && (
+                    <form
+                      onSubmit={submitProposedSlots}
+                      className={`space-y-3 pt-2 ${slots.length > 0 ? 'border-t border-border/40' : ''}`}
                     >
-                      + Add another slot
-                    </button>
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground pt-2">
+                        {slots.length > 0 ? 'Add more slots' : 'Propose time slots'}
+                      </p>
+                      {slotInputs.map((val, i) => (
+                        <div key={i} className="flex gap-2">
+                          <input
+                            type="datetime-local"
+                            value={val}
+                            onChange={(e) => {
+                              const next = [...slotInputs];
+                              next[i] = e.target.value;
+                              setSlotInputs(next);
+                            }}
+                            className="flex h-11 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          />
+                          {slotInputs.length > 1 && (
+                            <button
+                              type="button"
+                              className="px-3 text-muted-foreground hover:text-foreground"
+                              onClick={() =>
+                                setSlotInputs(slotInputs.filter((_, j) => j !== i))
+                              }
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap items-center gap-4 pt-1">
+                        {slots.length + slotInputs.filter(Boolean).length < 5 && (
+                          <button
+                            type="button"
+                            className="text-sm text-primary hover:underline text-left shrink-0"
+                            onClick={() => setSlotInputs([...slotInputs, ''])}
+                          >
+                            + Add another slot
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={actionBusy}
+                          className="btn-primary shrink-0 ml-auto pl-6 pr-7"
+                        >
+                          Propose {slotInputs.filter(Boolean).length || ''} slot(s)
+                        </button>
+                      </div>
+                    </form>
                   )}
-                  <button
-                    type="submit"
-                    disabled={actionBusy}
-                    className="btn-primary"
-                  >
-                    Propose {slotInputs.filter(Boolean).length || ''} slot(s)
-                  </button>
-                </form>
               </section>
             )}
 

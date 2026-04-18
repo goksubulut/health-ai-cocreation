@@ -3,7 +3,7 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const authenticate = require('../middleware/authenticate');
 const validate = require('../middleware/validate');
-const { updateProfileSchema, deleteAccountSchema } = require('../validations/userSchemas');
+const { updateProfileSchema, deleteAccountSchema, changePasswordSchema } = require('../validations/userSchemas');
 
 router.use(authenticate);
 
@@ -12,6 +12,9 @@ router.get('/profile', userController.getProfile);
 
 // PUT  /api/users/profile      — Profili güncelle
 router.put('/profile', validate(updateProfileSchema), userController.updateProfile);
+
+// PUT  /api/users/password      — Şifre değiştir
+router.put('/password', validate(changePasswordSchema), userController.changePassword);
 
 // DELETE /api/users/account    — Hesabı sil (GDPR)
 router.delete('/account', validate(deleteAccountSchema), userController.deleteAccount);

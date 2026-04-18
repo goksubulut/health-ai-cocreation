@@ -2,6 +2,35 @@ const bcrypt = require('bcrypt');
 const { User, Post, MeetingRequest, NdaAcceptance, ActivityLog } = require('../models');
 const env = require('../config/env');
 
+// ── PUT /api/users/password ────────────────────────────────────
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.scope('withPassword').findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+
+    const sameAsStored = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsStored) {
+      return res.status(400).json({
+        message: 'New password must be different from your current password.',
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, env.bcryptRounds);
+    await user.update({ passwordHash });
+
+    return res.json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('changePassword hatası:', err);
+    return res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 // ── GET /api/users/profile ─────────────────────────────────────
 const getProfile = async (req, res) => {
   try {
@@ -106,4 +135,4 @@ const exportData = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, exportData };
+module.exports = { getProfile, updateProfile, deleteAccount, exportData, changePassword };

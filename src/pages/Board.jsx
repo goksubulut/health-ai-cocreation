@@ -18,7 +18,7 @@ function tagsFromPost(p) {
       .split(/[,;]/)
       .map((t) => t.trim())
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, 3);
   }
   return ['General'];
 }
@@ -26,9 +26,51 @@ function tagsFromPost(p) {
 function Board() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [cityFilter, setCityFilter] = useState('');
+  const [expertiseFilter, setExpertiseFilter] = useState('');
+  const [cityOptions, setCityOptions] = useState([]);
+  const [expertiseOptions, setExpertiseOptions] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchErr, setFetchErr] = useState('');
+
+  const loadFacets = useCallback(async () => {
+    const a = getAuth();
+    if (!a?.accessToken) {
+      setCityOptions([]);
+      setExpertiseOptions([]);
+      return;
+    }
+    try {
+      const res = await fetch('/api/posts?limit=100', {
+        headers: { Authorization: `Bearer ${a.accessToken}` },
+      });
+      const json = await res.json();
+      if (!res.ok) return;
+      const rows = Array.isArray(json.data) ? json.data : [];
+      const cities = [
+        ...new Set(
+          rows
+            .map((p) => (typeof p.city === 'string' ? p.city.trim() : ''))
+            .filter(Boolean)
+        ),
+      ].sort((x, y) => x.localeCompare(y));
+      const expertise = [
+        ...new Set(
+          rows
+            .map((p) =>
+              typeof p.required_expertise === 'string' ? p.required_expertise.trim() : ''
+            )
+            .filter(Boolean)
+        ),
+      ].sort((x, y) => x.localeCompare(y));
+      setCityOptions(cities);
+      setExpertiseOptions(expertise);
+    } catch {
+      setCityOptions([]);
+      setExpertiseOptions([]);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     const a = getAuth();
@@ -41,7 +83,10 @@ function Board() {
     setLoading(true);
     setFetchErr('');
     try {
-      const res = await fetch('/api/posts?limit=50', {
+      const params = new URLSearchParams({ limit: '50' });
+      if (cityFilter.trim()) params.set('city', cityFilter.trim());
+      if (expertiseFilter.trim()) params.set('expertise', expertiseFilter.trim());
+      const res = await fetch(`/api/posts?${params.toString()}`, {
         headers: { Authorization: `Bearer ${a.accessToken}` },
       });
       const json = await res.json();
@@ -51,6 +96,7 @@ function Board() {
         id: p.id,
         title: p.title,
         role: p.required_expertise || '—',
+        city: typeof p.city === 'string' && p.city.trim() ? p.city.trim() : null,
         tags: tagsFromPost(p),
         isDiscreet: p.confidentiality === 'meeting_only',
         bg: cardBackgrounds[(Math.abs(p.id) % 5 + 5) % 5],
@@ -62,14 +108,25 @@ function Board() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cityFilter, expertiseFilter]);
+
+  useEffect(() => {
+    loadFacets();
+  }, [loadFacets]);
 
   useEffect(() => {
     load();
-    const ev = getAuthChangedEventName();
-    window.addEventListener(ev, load);
-    return () => window.removeEventListener(ev, load);
   }, [load]);
+
+  useEffect(() => {
+    const ev = getAuthChangedEventName();
+    const onAuth = () => {
+      loadFacets();
+      load();
+    };
+    window.addEventListener(ev, onAuth);
+    return () => window.removeEventListener(ev, onAuth);
+  }, [load, loadFacets]);
 
   const filterTags = useMemo(() => {
     const set = new Set();
@@ -129,7 +186,7 @@ function Board() {
           <p className="mb-6 text-sm text-destructive">{fetchErr}</p>
         )}
 
-        <div className="flex flex-col xl:flex-row gap-12">
+        <div className="flex flex-col xl:flex-row xl:items-start gap-12">
           <aside className="xl:w-64 shrink-0 flex flex-col gap-10">
             <div className="space-y-4">
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
@@ -142,6 +199,112 @@ function Board() {
                 placeholder="Keywords..."
                 className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-colors"
               />
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
+                City
+              </label>
+              <ul className="space-y-3 font-medium text-sm">
+                <li
+                  className="flex items-center gap-3 cursor-pointer group select-none"
+                  onClick={() => setCityFilter('')}
+                >
+                  <div
+                    className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                      cityFilter === '' ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
+                    }`}
+                  >
+                    {cityFilter === '' && (
+                      <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={cityFilter === '' ? 'text-primary font-bold' : 'text-foreground/80'}>All</span>
+                </li>
+                {cityOptions.map((c) => (
+                  <li
+                    key={c}
+                    className="flex items-start gap-3 cursor-pointer group select-none"
+                    onClick={() => setCityFilter(cityFilter === c ? '' : c)}
+                  >
+                    <div
+                      className={`w-5 h-5 shrink-0 mt-0.5 rounded border flex items-center justify-center transition-colors ${
+                        cityFilter === c ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
+                      }`}
+                    >
+                      {cityFilter === c && (
+                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      className={`min-w-0 break-words leading-snug ${
+                        cityFilter === c ? 'text-primary font-bold' : 'text-foreground/80 group-hover:text-foreground'
+                      }`}
+                    >
+                      {c}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
+                Expertise
+              </label>
+              <ul className="space-y-3 font-medium text-sm">
+                <li
+                  className="flex items-center gap-3 cursor-pointer group select-none"
+                  onClick={() => setExpertiseFilter('')}
+                >
+                  <div
+                    className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                      expertiseFilter === '' ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
+                    }`}
+                  >
+                    {expertiseFilter === '' && (
+                      <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    className={expertiseFilter === '' ? 'text-primary font-bold' : 'text-foreground/80'}
+                  >
+                    All
+                  </span>
+                </li>
+                {expertiseOptions.map((ex) => (
+                  <li
+                    key={ex}
+                    className="flex items-start gap-3 cursor-pointer group select-none"
+                    onClick={() => setExpertiseFilter(expertiseFilter === ex ? '' : ex)}
+                  >
+                    <div
+                      className={`w-5 h-5 shrink-0 mt-0.5 rounded border flex items-center justify-center transition-colors ${
+                        expertiseFilter === ex ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
+                      }`}
+                    >
+                      {expertiseFilter === ex && (
+                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      className={`min-w-0 break-words leading-snug ${
+                        expertiseFilter === ex ? 'text-primary font-bold' : 'text-foreground/80 group-hover:text-foreground'
+                      }`}
+                    >
+                      {ex}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="space-y-4">
@@ -196,7 +359,7 @@ function Board() {
             </div>
           </aside>
 
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-8">
+          <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-8 content-start items-start">
             {loading && authed ? (
               <p className="col-span-full flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="animate-spin" size={18} /> Loading posts…
@@ -249,11 +412,11 @@ function Board() {
                       </div>
 
                       <div>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
+                        <div className="flex flex-wrap gap-1.5 mb-2 h-[26px] overflow-hidden">
                           {post.tags.map((tag, ti) => (
                             <span
                               key={`${post.id}-t-${ti}`}
-                              className="bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest whitespace-nowrap"
+                              className="bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest truncate max-w-[140px] inline-block"
                             >
                               {tag}
                             </span>
@@ -265,6 +428,11 @@ function Board() {
                               Seeking
                             </span>
                             <span className="text-[13px] lg:text-sm font-semibold truncate max-w-[140px]">{post.role}</span>
+                            {post.city && (
+                              <span className="text-[9px] lg:text-[10px] uppercase text-white/45 font-bold tracking-widest mt-1 truncate max-w-[160px]">
+                                {post.city}
+                              </span>
+                            )}
                           </div>
                           <Link
                             to={`/post/${post.id}`}
