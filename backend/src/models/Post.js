@@ -41,7 +41,14 @@ const Post = sequelize.define('Post', {
     defaultValue: 'public',
   },
   status: {
-    type: DataTypes.ENUM('draft', 'active', 'meeting_scheduled', 'partner_found', 'expired'),
+    type: DataTypes.ENUM(
+      'draft',
+      'active',
+      'meeting_scheduled',
+      'partner_found',
+      'expired',
+      'removed_by_admin'
+    ),
     defaultValue: 'draft',
   },
   city: {

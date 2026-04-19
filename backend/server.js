@@ -13,8 +13,8 @@ const startServer = async () => {
 
     // Opsiyonel: tablo/modele otomatik senkronizasyon
     if (env.dbAutoSync) {
-      await sequelize.sync({ alter: true });
-      console.log('Tablolar senkronize edildi (alter modu).');
+      await sequelize.sync({ alter: false });
+      console.log('Tablolar senkronize edildi (alter: false).');
     }
 
     app.listen(env.port, () => {

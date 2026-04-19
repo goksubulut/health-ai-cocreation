@@ -21,7 +21,8 @@ router.get('/logs',             adminController.getLogs);
 router.get('/logs/export',      adminController.exportLogs);
 router.delete('/logs/cleanup',  adminController.cleanupLogs);
 
-// İstatistikler
+// İstatistikler + dashboard
 router.get('/stats',            adminController.getStats);
+router.get('/dashboard',        adminController.getDashboard);
 
 module.exports = router;

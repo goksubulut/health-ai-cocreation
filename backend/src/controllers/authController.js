@@ -136,7 +136,7 @@ const login = async (req, res) => {
     // Email verification not enforced on login (testing); re-add isVerified check before production.
 
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Account suspended' });
+      return res.status(403).json({ message: 'Your account has been suspended.' });
     }
 
     await user.update({ lastLogin: new Date() });
@@ -181,7 +181,7 @@ const refresh = async (req, res) => {
       return res.status(401).json({ message: 'Invalid or expired refresh token.' });
     }
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Account suspended' });
+      return res.status(403).json({ message: 'Your account has been suspended.' });
     }
 
     const accessToken = generateAccessToken(user);

@@ -250,6 +250,10 @@ const getPostById = async (req, res) => {
       return res.status(404).json({ message: 'Post not found.' });
     }
 
+    if (post.status === 'removed_by_admin' && req.user.role !== 'admin') {
+      return res.status(404).json({ message: 'Post not found.' });
+    }
+
     if (post.status === 'draft' && !isOwner(post, req.user.id)) {
       return res.status(403).json({ message: 'You do not have access to this post.' });
     }

@@ -14,7 +14,7 @@ const hashIp = (ip) => {
  * @param {object} params
  * @param {number|null} params.userId
  * @param {string|null} params.role
- * @param {'LOGIN'|'FAILED_LOGIN'|'LOGOUT'|'REGISTER'|'EMAIL_VERIFIED'|'PASSWORD_RESET'|'POST_CREATE'|'POST_CLOSE'|'MEETING_REQUEST'|'MEETING_ACCEPT'|'MEETING_DECLINE'|'SLOT_CONFIRMED'|'MEETING_CANCEL'} params.actionType
+ * @param {'LOGIN'|'FAILED_LOGIN'|'LOGOUT'|'REGISTER'|'EMAIL_VERIFIED'|'PASSWORD_RESET'|'POST_CREATE'|'POST_CLOSE'|'POST_ADMIN_REMOVE'|'MEETING_REQUEST'|'MEETING_ACCEPT'|'MEETING_DECLINE'|'SLOT_CONFIRMED'|'MEETING_CANCEL'|'ACCOUNT_SUSPEND'|'ACCOUNT_REACTIVATE'} params.actionType
  * @param {string|null} params.targetEntity
  * @param {number|null} params.targetId
  * @param {'success'|'failure'} params.resultStatus

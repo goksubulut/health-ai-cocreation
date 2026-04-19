@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { getAuth } from '@/lib/auth';
+import { getAuth, getDashboardPathByRole } from '@/lib/auth';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const auth = getAuth();
@@ -10,7 +10,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (allowedRoles && !allowedRoles.includes(auth.user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getDashboardPathByRole(auth.user.role)} replace />;
   }
 
   return children;

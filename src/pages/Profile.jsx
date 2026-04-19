@@ -24,6 +24,7 @@ const STATUS_LABELS = {
   meeting_scheduled: 'Meeting Scheduled',
   partner_found: 'Partner Found',
   expired: 'Expired',
+  removed_by_admin: 'Removed by Admin',
 };
 
 const STATUS_COLORS = {
@@ -32,6 +33,7 @@ const STATUS_COLORS = {
   meeting_scheduled: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
   partner_found: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
   expired: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  removed_by_admin: 'bg-red-900/25 text-red-600 dark:text-red-400',
 };
 
 const STAGE_LABELS = {

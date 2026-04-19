@@ -12,7 +12,11 @@ import MeetingRequest from './pages/MeetingRequest';
 import MeetingRequests from './pages/MeetingRequests';
 import MeetingDetail from './pages/MeetingDetail';
 import Profile from './pages/Profile';
-import AdminPanel from './pages/AdminPanel';
+import AdminLayout from './components/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminPosts from './pages/admin/AdminPosts';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminLogs from './pages/admin/AdminLogs';
 import './index.css';
 import { ThemeProvider } from './components/theme-provider';
 
@@ -84,14 +88,20 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="admin"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminPanel />
-                </ProtectedRoute>
-              }
-            />
+          </Route>
+
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="posts" element={<AdminPosts />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="logs" element={<AdminLogs />} />
           </Route>
         </Routes>
       </BrowserRouter>
