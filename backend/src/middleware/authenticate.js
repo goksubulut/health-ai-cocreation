@@ -24,9 +24,9 @@ const authenticate = (req, res, next) => {
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Oturum süresi doldu. Lütfen tekrar giriş yapın.' });
+      return res.status(401).json({ message: 'Session expired. Please sign in again.' });
     }
-    return res.status(401).json({ message: 'Geçersiz token.' });
+    return res.status(401).json({ message: 'Invalid token.' });
   }
 };
 

@@ -14,6 +14,7 @@ import PostDetail from './pages/PostDetail';
 import MeetingRequest from './pages/MeetingRequest';
 import MeetingRequests from './pages/MeetingRequests';
 import MeetingDetail from './pages/MeetingDetail';
+import MndaAgreementPage from './pages/MndaAgreementPage';
 import Profile from './pages/Profile';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -71,6 +72,7 @@ function App() {
             <Route path="board" element={<Board />} />
             <Route path="post/:id" element={<PostDetail />} />
             <Route path="post/:id/meeting" element={<MeetingRequest />} />
+            <Route path="legal/mnda" element={<MndaAgreementPage />} />
             <Route
               path="profile"
               element={

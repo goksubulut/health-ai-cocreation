@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Loader2,
@@ -30,6 +30,7 @@ function MeetingDetail() {
   const [slotInputs, setSlotInputs] = useState(['']);
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editSlotValue, setEditSlotValue] = useState('');
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const auth = getAuth();
   const token = auth?.accessToken;
@@ -227,7 +228,6 @@ function MeetingDetail() {
 
   const cancelMeeting = async () => {
     if (!token || !id || !canCancel) return;
-    if (!window.confirm('Cancel this meeting request?')) return;
     setActionBusy(true);
     setErr('');
     try {
@@ -565,7 +565,7 @@ function MeetingDetail() {
                 <button
                   type="button"
                   disabled={actionBusy}
-                  onClick={cancelMeeting}
+                  onClick={() => setCancelModalOpen(true)}
                   className="inline-flex items-center gap-2 text-sm text-destructive hover:underline"
                 >
                   <Trash2 size={16} /> Cancel meeting request
@@ -575,6 +575,55 @@ function MeetingDetail() {
           </>
         ) : null}
       </div>
+
+      <AnimatePresence>
+        {cancelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !actionBusy && setCancelModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-50 w-full max-w-md overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-2xl"
+            >
+              <h3 className="mb-2 font-serif text-xl font-medium text-foreground">
+                Cancel Meeting Request
+              </h3>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Are you sure you want to cancel this meeting request? This action cannot be undone.
+              </p>
+
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  className="rounded-full border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
+                  onClick={() => setCancelModalOpen(false)}
+                >
+                  Keep Request
+                </button>
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  className="rounded-full px-4 py-2 text-sm font-medium transition-colors bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60"
+                  onClick={async () => {
+                    await cancelMeeting();
+                    setCancelModalOpen(false);
+                  }}
+                >
+                  {actionBusy ? 'Cancelling…' : 'Cancel Request'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

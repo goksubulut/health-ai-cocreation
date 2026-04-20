@@ -110,14 +110,21 @@ const createMeetingRequest = async (req, res) => {
       return res.status(400).json({ error: 'Cannot request a meeting on your own post' });
     }
 
-    const existing = await MeetingRequest.findOne({
+    // Use latest request state for this requester+post pair.
+    // If the latest one is cancelled/declined, user can send a new proposal.
+    const latestRequest = await MeetingRequest.findOne({
       where: {
         postId,
         requesterId,
-        status: { [Op.in]: ['pending', 'accepted', 'scheduled'] },
       },
+      // Cancellation/decline updates updatedAt. Prefer most recently changed row.
+      order: [
+        ['updatedAt', 'DESC'],
+        ['createdAt', 'DESC'],
+        ['id', 'DESC'],
+      ],
     });
-    if (existing) {
+    if (latestRequest && ['pending', 'accepted', 'scheduled'].includes(latestRequest.status)) {
       return res.status(400).json({ error: 'You already have an active request for this post' });
     }
 

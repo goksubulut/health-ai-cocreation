@@ -14,7 +14,7 @@ const EXPERTISE_LABELS = {
   ml_engineer: 'Machine Learning Engineer',
   data_scientist: 'Data Scientist',
   surgeon: 'Surgeon / Clinical Lead',
-  radiologist: 'Radiologist',
+  other: 'Other',
 };
 
 /** Maps form step-2 values to API project_stage */
@@ -53,7 +53,13 @@ function expertiseStringToKey(requiredExpertise) {
   const found = Object.entries(EXPERTISE_LABELS).find(
     ([, label]) => label === requiredExpertise
   );
-  return found ? found[0] : '';
+  return found ? found[0] : 'other';
+}
+
+function expertiseStringToOtherValue(requiredExpertise) {
+  if (!requiredExpertise) return '';
+  const known = Object.values(EXPERTISE_LABELS).includes(requiredExpertise);
+  return known ? '' : requiredExpertise;
 }
 
 function mapPostApiToForm(p) {
@@ -73,6 +79,7 @@ function mapPostApiToForm(p) {
     desc: p.description || '',
     area: p.domain || '',
     roleNeeded: expertiseStringToKey(p.required_expertise),
+    otherExpertise: expertiseStringToOtherValue(p.required_expertise),
     stage: STAGE_FROM_API[p.project_stage] || '',
     privacy: p.confidentiality === 'meeting_only' ? 'confidential' : 'public',
     location,
@@ -94,6 +101,7 @@ function PostForm() {
     desc: '',
     area: '',
     roleNeeded: '',
+    otherExpertise: '',
     stage: '',
     privacy: '',
     location: '',
@@ -166,13 +174,21 @@ function PostForm() {
       title: formData.title.trim(),
       domain: formData.area.trim(),
       description: desc,
-      required_expertise: EXPERTISE_LABELS[formData.roleNeeded] || formData.roleNeeded,
+      required_expertise:
+        formData.roleNeeded === 'other'
+          ? formData.otherExpertise.trim()
+          : (EXPERTISE_LABELS[formData.roleNeeded] || formData.roleNeeded),
       project_stage: projectStage,
       confidentiality: formData.privacy === 'confidential' ? 'meeting_only' : 'public',
       status: submitAction,
       city: city || undefined,
       country: country || undefined,
     };
+
+    if (!body.required_expertise) {
+      setSubmitError('Please enter the expertise needed.');
+      return;
+    }
 
     if (formData.expiration) {
       body.expiry_date = new Date(`${formData.expiration}T12:00:00`).toISOString();
@@ -420,9 +436,27 @@ function PostForm() {
                         <option value="ml_engineer">Machine Learning Engineer</option>
                         <option value="data_scientist">Data Scientist</option>
                         <option value="surgeon">Surgeon / Clinical Lead</option>
-                        <option value="radiologist">Radiologist</option>
+                        <option value="other">Other</option>
                       </select>
                     </div>
+                    {formData.roleNeeded === 'other' && (
+                      <div>
+                        <label htmlFor="post-expertise-other" className={labelClass}>
+                          Custom expertise
+                        </label>
+                        <input
+                          id="post-expertise-other"
+                          type="text"
+                          className={inputClass}
+                          placeholder="e.g. Biomedical Signal Processing Specialist"
+                          required
+                          value={formData.otherExpertise}
+                          onChange={(e) =>
+                            setFormData({ ...formData, otherExpertise: e.target.value })
+                          }
+                        />
+                      </div>
+                    )}
                     <div>
                       <label htmlFor="post-stage" className={labelClass}>
                         Project stage

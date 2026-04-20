@@ -36,6 +36,8 @@ function PostDetail() {
   const [createdMeetingId, setCreatedMeetingId] = useState(null);
   const [slotInputs, setSlotInputs] = useState(['']);
   const [slotBusy, setSlotBusy] = useState(false);
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [activeRequestStatus, setActiveRequestStatus] = useState('');
 
   const postIdNum = parseInt(id, 10);
   const meshIdx =
@@ -76,15 +78,55 @@ function PostDetail() {
     return () => window.removeEventListener(ev, loadPost);
   }, [loadPost]);
 
+  useEffect(() => {
+    const auth = getAuth();
+    if (!auth?.accessToken || !id) {
+      setHasActiveRequest(false);
+      setActiveRequestStatus('');
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/meetings?type=sent', {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !Array.isArray(json.data)) return;
+
+        const active = json.data.find(
+          (m) =>
+            String(m.post_id) === String(id) &&
+            ['pending', 'accepted', 'scheduled'].includes(m.status)
+        );
+        if (!cancelled) {
+          setHasActiveRequest(Boolean(active));
+          setActiveRequestStatus(active?.status || '');
+        }
+      } catch {
+        if (!cancelled) {
+          setHasActiveRequest(false);
+          setActiveRequestStatus('');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, interestSent, flowStep]);
+
   const auth = getAuth();
   const uid = auth?.user?.id;
   const isOwner = post && uid != null && post.user_id === uid;
   const isMeetingOnly = post?.confidentiality === 'meeting_only';
-  const canRequest =
+  const canAccessMeetingFlow =
     post &&
     ['active', 'meeting_scheduled'].includes(post.status) &&
     !isOwner &&
     uid != null;
+  const canStartRequest = canAccessMeetingFlow && !hasActiveRequest;
 
   const ownerDisplay = post?.owner
     ? `${post.owner.first_name || ''} ${post.owner.last_name || ''}`.trim() || 'Author'
@@ -99,7 +141,7 @@ function PostDetail() {
       setSubmitErr('Invalid post.');
       return;
     }
-    if (!canRequest || !auth?.accessToken) return;
+    if (!canStartRequest || !auth?.accessToken) return;
     if (isMeetingOnly && !ndaAccepted) {
       setSubmitErr('Please review and agree to the NDA terms before proposing time slots.');
       return;
@@ -385,7 +427,7 @@ function PostDetail() {
               <p className="mb-4 text-sm text-muted-foreground">This is your post — you cannot request a meeting on it.</p>
             )}
 
-            {flowStep === 'interest' && isMeetingOnly && canRequest && (
+            {flowStep === 'interest' && isMeetingOnly && canStartRequest && (
               <div className="mb-6 bg-background rounded-xl border border-border p-5">
                 <label className="flex items-start gap-4 cursor-pointer group">
                   <div className="relative mt-1">
@@ -413,16 +455,21 @@ function PostDetail() {
                   </div>
                   <span className="text-sm font-medium text-foreground leading-snug select-none">
                     I digitally sign and agree to the{' '}
-                    <span className="text-primary underline underline-offset-2">
+                    <a
+                      href="/legal/mnda"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline underline-offset-2 hover:opacity-80"
+                    >
                       Mutual Non-Disclosure Agreement (MNDA)
-                    </span>{' '}
+                    </a>{' '}
                     required for confidential posts.
                   </span>
                 </label>
               </div>
             )}
 
-            {flowStep === 'interest' && canRequest && (
+            {flowStep === 'interest' && canStartRequest && (
               <div className="mb-6">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
                   Message (optional)
@@ -439,7 +486,7 @@ function PostDetail() {
               </div>
             )}
 
-            {flowStep === 'slots' && canRequest && (
+            {flowStep === 'slots' && canAccessMeetingFlow && (
               <div className="mb-6 space-y-3">
                 <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-background/80 p-3 text-xs text-muted-foreground">
                   <CalendarClock className="shrink-0 mt-0.5 text-primary" size={16} />
@@ -503,7 +550,7 @@ function PostDetail() {
                     : 'bg-primary text-primary-foreground hover:opacity-90 hover:shadow-primary/25 disabled:opacity-50'
                 }`}
                 onClick={handleInterest}
-                disabled={submitting || interestSent || !canRequest || !['active', 'meeting_scheduled'].includes(post.status)}
+                disabled={submitting || interestSent || !canStartRequest || !['active', 'meeting_scheduled'].includes(post.status)}
               >
                 {submitting ? (
                   <>
@@ -517,12 +564,20 @@ function PostDetail() {
               </button>
             )}
 
+            {flowStep === 'interest' && hasActiveRequest && (
+              <p className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                You already have an active meeting request for this post
+                {activeRequestStatus ? ` (${activeRequestStatus})` : ''}. You can create a new proposal
+                after this request is cancelled, declined, or completed.
+              </p>
+            )}
+
             {flowStep === 'slots' && (
               <button
                 type="button"
                 className="w-full relative overflow-hidden rounded-full py-4 px-6 text-sm font-bold uppercase tracking-widest shadow-lg transition-all duration-300 flex items-center justify-center gap-3 bg-primary text-primary-foreground hover:opacity-90 hover:shadow-primary/25 disabled:opacity-50"
                 onClick={submitProposedSlots}
-                disabled={slotBusy || !canRequest || !['active', 'meeting_scheduled'].includes(post.status)}
+                disabled={slotBusy || !canAccessMeetingFlow || !['active', 'meeting_scheduled'].includes(post.status)}
               >
                 {slotBusy ? (
                   <>
