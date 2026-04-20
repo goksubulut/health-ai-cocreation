@@ -2,22 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
-
-const defaultProjects = [
-  { title: "Neuro-Robotics Control Arm", role: "Robotics Engineer", desc: "Seeking hardware experts to refine the multi-axis movement for surgical assistance.", stage: "Prototyping" },
-  { title: "AI Cardiology Imaging", role: "Data Scientist", desc: "Building a CNN model to detect early-stage arrhythmia from low-res ultrasounds.", stage: "Validation" },
-  { title: "Genomic Sequencing App", role: "Software", desc: "Looking for an engineer to build the high-availability cloud architecture.", stage: "Planning" },
-  { title: "Remote Telemetry Patch", role: "Hardware", desc: "Embedded systems expert needed to optimize power draw on Bluetooth LE.", stage: "Testing" },
-  { title: "AR Anatomy Visualizer", role: "Frontend Dev", desc: "Implementing Three.js visualization for medical student training modules.", stage: "Concept" }
-];
-
-const cardBackgrounds = [
-  "/assets/mesh_1.png",
-  "/assets/mesh_2.png",
-  "/assets/mesh_3.png",
-  "/assets/mesh_4.png",
-  "/assets/mesh_5.png"
-];
+import { landingProjects } from '@/lib/showcaseListings';
 
 const ASCII_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789(){}[]<>;:,._-+=!@#$%^&*|\\/\"'`~?";
 const generateCode = (width, height) => {
@@ -35,7 +20,7 @@ const generateCode = (width, height) => {
 export const ScannerCardStream = ({
   initialSpeed = 60,
   direction = -1,
-  projects = defaultProjects,
+  projects = landingProjects,
   repeat = 6,
   cardGap = 40,
   friction = 0.95,
@@ -47,7 +32,6 @@ export const ScannerCardStream = ({
     return Array.from({ length: totalCards }, (_, i) => ({
       id: i,
       data: projects[i % projects.length],
-      bg: cardBackgrounds[i % cardBackgrounds.length],
       ascii: generateCode(Math.floor(400 / 6.5), Math.floor(250 / 13)),
     }))
   }, [projects, repeat]);
@@ -313,7 +297,7 @@ export const ScannerCardStream = ({
               >
                 {/* Physical Authentic Card Background Vector */}
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                   <img src={card.bg} alt="Card Theme" className="w-full h-full object-cover opacity-90 dark:opacity-70 saturate-150 contrast-125 mix-blend-screen" />
+                   <img src={card.data.bg} alt="Card Theme" className="w-full h-full object-cover opacity-90 dark:opacity-70 saturate-150 contrast-125 mix-blend-screen" />
                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/80"></div>
                 </div>
 

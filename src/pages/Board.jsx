@@ -1,27 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Loader2, Search, X, SlidersHorizontal, MapPin, Cpu, Tag } from 'lucide-react';
-import { getAuth, getAuthChangedEventName } from '@/lib/auth';
-
-const cardBackgrounds = [
-  '/assets/mesh_1.png',
-  '/assets/mesh_2.png',
-  '/assets/mesh_3.png',
-  '/assets/mesh_4.png',
-  '/assets/mesh_5.png',
-];
-
-function tagsFromPost(p) {
-  if (p.domain) {
-    return p.domain
-      .split(/[,;]/)
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 3);
-  }
-  return ['General'];
-}
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { Search, X, SlidersHorizontal, MapPin, Cpu, Tag, Heart } from 'lucide-react';
+import ThreeDImageGallery from '@/components/ui/3d-image-gallery';
+import { boardListings } from '@/lib/showcaseListings';
 
 function FilterSection({ label, icon: Icon, children }) {
   return (
@@ -67,101 +49,27 @@ function FilterOption({ label, active, onClick }) {
 }
 
 function Board() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState('');
-  const [cityOptions, setCityOptions] = useState([]);
-  const [expertiseOptions, setExpertiseOptions] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchErr, setFetchErr] = useState('');
+  const [viewMode, setViewMode] = useState('nearby');
+  const [posts] = useState(boardListings);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
-  const loadFacets = useCallback(async () => {
-    const a = getAuth();
-    if (!a?.accessToken) {
-      setCityOptions([]);
-      setExpertiseOptions([]);
-      return;
-    }
-    try {
-      const res = await fetch('/api/posts?limit=100', {
-        headers: { Authorization: `Bearer ${a.accessToken}` },
-      });
-      const json = await res.json();
-      if (!res.ok) return;
-      const rows = Array.isArray(json.data) ? json.data : [];
-      const cities = [
-        ...new Set(
-          rows
-            .map((p) => (typeof p.city === 'string' ? p.city.trim() : ''))
-            .filter(Boolean)
-        ),
-      ].sort((x, y) => x.localeCompare(y));
-      const expertise = [
-        ...new Set(
-          rows
-            .map((p) =>
-              typeof p.required_expertise === 'string' ? p.required_expertise.trim() : ''
-            )
-            .filter(Boolean)
-        ),
-      ].sort((x, y) => x.localeCompare(y));
-      setCityOptions(cities);
-      setExpertiseOptions(expertise);
-    } catch {
-      setCityOptions([]);
-      setExpertiseOptions([]);
-    }
-  }, []);
-
-  const load = useCallback(async () => {
-    const a = getAuth();
-    if (!a?.accessToken) {
-      setPosts([]);
-      setLoading(false);
-      setFetchErr('');
-      return;
-    }
-    setLoading(true);
-    setFetchErr('');
-    try {
-      const params = new URLSearchParams({ limit: '50' });
-      if (cityFilter.trim()) params.set('city', cityFilter.trim());
-      if (expertiseFilter.trim()) params.set('expertise', expertiseFilter.trim());
-      const res = await fetch(`/api/posts?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${a.accessToken}` },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Failed to load posts.');
-      const rows = Array.isArray(json.data) ? json.data : [];
-      const mapped = rows.map((p) => ({
-        id: p.id,
-        title: p.title,
-        role: p.required_expertise || '—',
-        city: typeof p.city === 'string' && p.city.trim() ? p.city.trim() : null,
-        tags: tagsFromPost(p),
-        isDiscreet: p.confidentiality === 'meeting_only',
-        bg: cardBackgrounds[(Math.abs(p.id) % 5 + 5) % 5],
-      }));
-      setPosts(mapped);
-    } catch (e) {
-      setFetchErr(e instanceof Error ? e.message : 'Failed to load.');
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [cityFilter, expertiseFilter]);
-
-  useEffect(() => { loadFacets(); }, [loadFacets]);
-  useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    const ev = getAuthChangedEventName();
-    const onAuth = () => { loadFacets(); load(); };
-    window.addEventListener(ev, onAuth);
-    return () => window.removeEventListener(ev, onAuth);
-  }, [load, loadFacets]);
+  const cityOptions = useMemo(
+    () =>
+      [...new Set(posts.map((p) => (typeof p.city === 'string' ? p.city.trim() : '')).filter(Boolean))]
+        .sort((x, y) => x.localeCompare(y)),
+    [posts]
+  );
+  const expertiseOptions = useMemo(
+    () =>
+      [...new Set(posts.map((p) => (typeof p.role === 'string' ? p.role.trim() : '')).filter(Boolean))]
+        .sort((x, y) => x.localeCompare(y)),
+    [posts]
+  );
 
   const filterTags = useMemo(() => {
     const set = new Set();
@@ -175,11 +83,19 @@ function Board() {
       const text = `${p.title} ${p.role} ${p.tags.join(' ')}`.toLowerCase();
       const searchOk = !q || text.includes(q);
       const filterOk = activeFilter === 'All' || p.tags.some((t) => t === activeFilter);
-      return searchOk && filterOk;
+      const cityOk = !cityFilter || p.city === cityFilter;
+      const expertiseOk = !expertiseFilter || p.role === expertiseFilter;
+      return searchOk && filterOk && cityOk && expertiseOk;
     });
-  }, [posts, searchTerm, activeFilter]);
-
-  const authed = Boolean(getAuth()?.accessToken);
+  }, [posts, searchTerm, activeFilter, cityFilter, expertiseFilter]);
+  const orderedPostsByDistance = useMemo(
+    () => [...filteredPosts].sort((a, b) => a.distanceKm - b.distanceKm),
+    [filteredPosts]
+  );
+  const favoriteListings = useMemo(
+    () => orderedPostsByDistance.filter((post) => favoriteIds.includes(String(post.id))),
+    [orderedPostsByDistance, favoriteIds]
+  );
 
   const activeFilterCount = [
     searchTerm.trim() ? 1 : 0,
@@ -195,8 +111,14 @@ function Board() {
     setActiveFilter('All');
   };
 
+  const toggleFavorite = (listingId) => {
+    setFavoriteIds((prev) =>
+      prev.includes(listingId) ? prev.filter((id) => id !== listingId) : [...prev, listingId]
+    );
+  };
+
   return (
-    <div className="min-h-[100dvh] pt-28 pb-20 bg-background relative overflow-hidden">
+    <div className="min-h-[100dvh] pt-20 pb-14 bg-background relative overflow-hidden">
       {/* Subtle dot-grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
@@ -213,16 +135,16 @@ function Board() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-12"
+            className="mb-7"
           >
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-6 border-b border-border/50">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 pb-4 border-b border-border/50">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
                   <span className="w-4 h-px bg-muted-foreground/50 inline-block" />
                   Health AI Platform
                   <span className="w-4 h-px bg-muted-foreground/50 inline-block" />
                 </p>
-                <h1 className="font-serif text-5xl md:text-7xl lg:text-[5.5rem] leading-none tracking-tight">
+                <h1 className="font-serif text-4xl md:text-6xl lg:text-[4.6rem] leading-none tracking-tight">
                   Discover
                   <br />
                   <span className="text-muted-foreground/40">Projects</span>
@@ -230,22 +152,20 @@ function Board() {
               </div>
 
               <div className="flex flex-col items-start md:items-end gap-2 pb-1">
-                {!loading && authed && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-right"
-                  >
-                    <p className="font-serif text-4xl md:text-5xl text-foreground tabular-nums">
-                      {filteredPosts.length}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      active listing{filteredPosts.length !== 1 ? 's' : ''}
-                      {activeFilterCount > 0 ? ' matching filters' : ' available'}
-                    </p>
-                  </motion.div>
-                )}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-right"
+                >
+                  <p className="font-serif text-4xl md:text-5xl text-foreground tabular-nums">
+                    {filteredPosts.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    active listing{filteredPosts.length !== 1 ? 's' : ''}
+                    {activeFilterCount > 0 ? ' matching filters' : ' available'}
+                  </p>
+                </motion.div>
               </div>
             </div>
 
@@ -253,26 +173,11 @@ function Board() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="mt-4 text-sm text-muted-foreground max-w-2xl leading-relaxed"
+              className="mt-3 text-sm text-muted-foreground max-w-2xl leading-relaxed"
             >
-              Explore active listings from healthcare and engineering collaborators.
-              Sign in to view details and send meeting requests.
+              Explore listing cards in a spatial discover view centered on your location.
             </motion.p>
           </motion.div>
-
-          {/* Auth warning */}
-          {!authed && (
-            <div className="mb-10 rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-wrap items-center gap-4">
-              <p className="text-sm text-muted-foreground">Sign in to load live posts from the platform.</p>
-              <Link to="/auth?mode=login" className="btn-primary text-sm py-2 px-5">
-                Sign in
-              </Link>
-            </div>
-          )}
-
-          {fetchErr && (
-            <p className="mb-6 text-sm text-destructive">{fetchErr}</p>
-          )}
 
           <div className="flex flex-col xl:flex-row xl:items-start gap-10">
 
@@ -385,8 +290,70 @@ function Board() {
               </div>
             </motion.aside>
 
-            {/* ── Project Grid ── */}
+            {/* ── Discover 3D View ── */}
             <div className="flex-1 min-w-0">
+              <div className="mb-4 rounded-2xl border border-border/50 bg-card/40 p-3.5 backdrop-blur-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Favorites ({favoriteListings.length})
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex rounded-lg border border-border/60 bg-background/60 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('nearby')}
+                        className={[
+                          'px-3 py-1.5 text-xs rounded-md transition-colors',
+                          viewMode === 'nearby'
+                            ? 'bg-foreground text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        ].join(' ')}
+                      >
+                        Show Nearby
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('all')}
+                        className={[
+                          'px-3 py-1.5 text-xs rounded-md transition-colors',
+                          viewMode === 'all'
+                            ? 'bg-foreground text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        ].join(' ')}
+                      >
+                        Show All
+                      </button>
+                    </div>
+                    {favoriteListings.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFavoriteIds([])}
+                        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Clear favorites
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {favoriteListings.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Click a listing card and use the heart button to add favorites.
+                  </p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {favoriteListings.map((post) => (
+                      <button
+                        key={`fav-${post.id}`}
+                        type="button"
+                        className="rounded-full border border-border/60 px-3 py-1 text-xs hover:bg-muted/60 transition-colors"
+                        onClick={() => {}}
+                      >
+                        {post.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* Active filter chips */}
               {activeFilterCount > 0 && (
                 <motion.div
@@ -429,17 +396,9 @@ function Board() {
                 </motion.div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 content-start items-start">
-                {loading && authed ? (
-                  <p className="col-span-full flex items-center gap-2.5 text-muted-foreground py-10">
-                    <Loader2 className="animate-spin" size={18} /> Loading listings…
-                  </p>
-                ) : !authed ? (
-                  <p className="col-span-full text-sm text-muted-foreground py-10">
-                    Sign in to see projects.
-                  </p>
-                ) : filteredPosts.length === 0 ? (
-                  <div className="col-span-full py-16 text-center">
+              <div className="rounded-2xl border border-border/50 bg-card/40 p-4 md:p-5 backdrop-blur-sm">
+                {filteredPosts.length === 0 ? (
+                  <div className="py-16 text-center">
                     <p className="text-sm font-medium text-foreground mb-1">No listings found</p>
                     <p className="text-xs text-muted-foreground mb-4">Try adjusting your filters or search term.</p>
                     {activeFilterCount > 0 && (
@@ -452,95 +411,61 @@ function Board() {
                       </button>
                     )}
                   </div>
+                ) : viewMode === 'nearby' ? (
+                  <ThreeDImageGallery
+                    cards={orderedPostsByDistance.map((post) => ({
+                      id: String(post.id),
+                      title: post.title,
+                      city: post.city,
+                      distanceKm: post.distanceKm,
+                      category: post.role,
+                      summary: post.summary,
+                      imageUrl: post.imageUrl,
+                    }))}
+                    title="Discover Space"
+                    subtitle="The center sphere represents your location. Cards orbit around it for a dense discover overview."
+                    onOpenDetail={(listing) => navigate(`/post/${listing.id}`)}
+                    favoriteIds={favoriteIds}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ) : (
-                  <AnimatePresence>
-                    {filteredPosts.map((post, i) => (
-                      <motion.div
-                        key={post.id}
-                        className="relative group w-full aspect-[16/9] rounded-[1.75rem] overflow-hidden shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_24px_48px_rgba(0,0,0,0.22)]"
-                        initial={{ opacity: 0, scale: 0.96, y: 24 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ delay: i * 0.045, duration: 0.55, ease: 'easeOut' }}
-                      >
-                        {/* Background image */}
-                        <div className="absolute inset-0 z-0 bg-black">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {orderedPostsByDistance.map((post) => {
+                      const isFavorite = favoriteIds.includes(String(post.id));
+                      return (
+                        <div
+                          key={`all-${post.id}`}
+                          className="rounded-xl border border-border/60 bg-background/70 p-3"
+                        >
                           <img
-                            src={post.bg}
-                            alt=""
-                            className="w-full h-full object-cover opacity-90 dark:opacity-70 saturate-150 contrast-125 mix-blend-screen transition-transform duration-700 group-hover:scale-105"
+                            src={post.imageUrl}
+                            alt={post.title}
+                            className="h-36 w-full rounded-lg object-cover"
+                            loading="lazy"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/20" />
-                        </div>
-
-                        {/* Index badge */}
-                        <div className="absolute top-4 right-4 z-10 w-7 h-7 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center">
-                          <span className="text-[9px] font-bold text-white/60 tabular-nums">
-                            {String(i + 1).padStart(2, '0')}
-                          </span>
-                        </div>
-
-                        {/* Content */}
-                        <div className="relative z-10 w-full h-full flex flex-col justify-between p-5 lg:p-6 text-white">
-                          <div>
-                            {post.isDiscreet && (
-                              <div className="mb-2.5 inline-flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 font-mono text-[8px] font-bold text-red-300 border border-red-500/25 uppercase tracking-widest">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                                NDA Required
-                              </div>
-                            )}
-                            <h3
-                              className="font-sans text-[17px] font-bold leading-tight tracking-tight drop-shadow-sm"
-                              style={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {post.title}
-                            </h3>
-                          </div>
-
-                          <div>
-                            {/* Tags */}
-                            <div className="flex flex-wrap gap-1.5 mb-3 h-[22px] overflow-hidden">
-                              {post.tags.map((tag, ti) => (
-                                <span
-                                  key={`${post.id}-t-${ti}`}
-                                  className="bg-white/[0.12] backdrop-blur-md border border-white/15 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest truncate max-w-[130px] inline-block"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-
-                            {/* Footer row */}
-                            <div className="flex items-end justify-between border-t border-white/15 pt-3 gap-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[9px] uppercase text-white/50 font-bold tracking-widest mb-0.5">
-                                  Seeking
-                                </p>
-                                <p className="text-[13px] font-semibold truncate leading-tight">
-                                  {post.role}
-                                </p>
-                                {post.city && (
-                                  <p className="text-[9px] uppercase text-white/40 font-bold tracking-widest mt-1 truncate">
-                                    {post.city}
-                                  </p>
-                                )}
-                              </div>
-                              <Link
-                                to={`/post/${post.id}`}
-                                className="shrink-0 bg-white text-black hover:bg-white/90 transition-colors rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider shadow-md"
+                          <div className="mt-2.5">
+                            <p className="text-sm font-semibold truncate">{post.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {post.city} • {post.role}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">
+                                {post.distanceKm.toFixed(1)} km
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleFavorite(String(post.id))}
+                                className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-xs hover:bg-muted/60"
                               >
-                                Details
-                              </Link>
+                                <Heart size={12} fill={isFavorite ? 'currentColor' : 'none'} />
+                                {isFavorite ? 'Saved' : 'Save'}
+                              </button>
                             </div>
                           </div>
                         </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

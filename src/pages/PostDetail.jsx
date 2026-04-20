@@ -12,6 +12,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
+import { boardListings } from '@/lib/showcaseListings';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -20,6 +21,39 @@ const STAGE_LABELS = {
   pilot: 'Pilot',
   pre_deployment: 'Pre-deployment',
 };
+
+const MOCK_STAGE_MAP = {
+  Planning: 'idea',
+  Research: 'concept_validation',
+  Prototyping: 'prototype',
+  Validation: 'pilot',
+  Testing: 'pre_deployment',
+};
+
+function createMockPost(mockPost) {
+  if (!mockPost) return null;
+  return {
+    id: mockPost.id,
+    title: mockPost.title,
+    domain: Array.isArray(mockPost.tags) ? mockPost.tags.join(', ') : '',
+    required_expertise: mockPost.role,
+    project_stage: MOCK_STAGE_MAP[mockPost.stage] || 'prototype',
+    city: mockPost.city,
+    country: 'Turkey',
+    description:
+      mockPost.description ||
+      mockPost.summary ||
+      'This discover listing is presented as a curated showcase concept.',
+    confidentiality: 'open',
+    status: 'active',
+    user_id: null,
+    owner: {
+      first_name: 'Discover',
+      last_name: 'Showcase',
+    },
+    isMock: true,
+  };
+}
 
 function PostDetail() {
   const { id } = useParams();
@@ -38,6 +72,8 @@ function PostDetail() {
   const [slotBusy, setSlotBusy] = useState(false);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [activeRequestStatus, setActiveRequestStatus] = useState('');
+  const mockSource = boardListings.find((item) => String(item.id) === String(id)) || null;
+  const isMockPost = Boolean(mockSource);
 
   const postIdNum = parseInt(id, 10);
   const meshIdx =
@@ -46,6 +82,12 @@ function PostDetail() {
 
   const loadPost = useCallback(async () => {
     const auth = getAuth();
+    if (isMockPost) {
+      setPost(createMockPost(mockSource));
+      setLoadErr('');
+      setLoading(false);
+      return;
+    }
     if (!auth?.accessToken || !id) {
       setPost(null);
       setLoadErr(!auth ? 'Please sign in to view this post.' : '');
@@ -69,7 +111,7 @@ function PostDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, isMockPost, mockSource]);
 
   useEffect(() => {
     loadPost();
@@ -79,6 +121,11 @@ function PostDetail() {
   }, [loadPost]);
 
   useEffect(() => {
+    if (isMockPost) {
+      setHasActiveRequest(false);
+      setActiveRequestStatus('');
+      return;
+    }
     const auth = getAuth();
     if (!auth?.accessToken || !id) {
       setHasActiveRequest(false);
@@ -115,7 +162,7 @@ function PostDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, interestSent, flowStep]);
+  }, [id, interestSent, flowStep, isMockPost]);
 
   const auth = getAuth();
   const uid = auth?.user?.id;
@@ -125,7 +172,8 @@ function PostDetail() {
     post &&
     ['active', 'meeting_scheduled'].includes(post.status) &&
     !isOwner &&
-    uid != null;
+    uid != null &&
+    !post.isMock;
   const canStartRequest = canAccessMeetingFlow && !hasActiveRequest;
 
   const ownerDisplay = post?.owner
@@ -225,7 +273,7 @@ function PostDetail() {
     }
   };
 
-  if (!getAuth()?.accessToken && !loading) {
+  if (!isMockPost && !getAuth()?.accessToken && !loading) {
     return (
       <div className="min-h-screen pt-24 pb-20 px-6 max-w-6xl mx-auto">
         <Link
@@ -381,6 +429,20 @@ function PostDetail() {
                 </div>
               </div>
             )}
+
+            {post.isMock && (
+              <div className="mt-10 p-6 rounded-2xl border border-sky-500/20 bg-sky-500/10 flex flex-col sm:flex-row items-center gap-6">
+                <div className="w-16 h-16 shrink-0 rounded-full bg-sky-500/12 flex items-center justify-center text-sky-600 dark:text-sky-300">
+                  <CheckCircle2 size={32} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-foreground mb-1">Showcase listing preview</h4>
+                  <p className="text-sm text-muted-foreground">
+                    This item comes from the discover showcase set, so meeting request actions are intentionally disabled.
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
         </motion.div>
 
@@ -420,6 +482,12 @@ function PostDetail() {
             {!['active', 'meeting_scheduled'].includes(post.status) && (
               <p className="mb-4 text-sm text-amber-600 dark:text-amber-400">
                 This post is not accepting new meeting requests ({post.status}).
+              </p>
+            )}
+
+            {post.isMock && (
+              <p className="mb-4 text-sm text-muted-foreground">
+                This is a discover showcase detail page. Meeting flow is available only for live platform posts.
               </p>
             )}
 
