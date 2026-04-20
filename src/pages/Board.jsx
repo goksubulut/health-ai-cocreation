@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, X, SlidersHorizontal, MapPin, Cpu, Tag } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 
 const cardBackgrounds = [
@@ -21,6 +21,49 @@ function tagsFromPost(p) {
       .slice(0, 3);
   }
   return ['General'];
+}
+
+function FilterSection({ label, icon: Icon, children }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 pb-2 border-b border-border/40">
+        <Icon size={12} className="text-muted-foreground" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FilterOption({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'w-full flex items-center gap-2.5 text-left rounded-lg px-2.5 py-2 text-sm transition-all duration-150',
+        active
+          ? 'bg-foreground text-primary-foreground font-semibold'
+          : 'text-foreground/70 hover:text-foreground hover:bg-muted/60 font-medium',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'shrink-0 w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors',
+          active ? 'bg-primary-foreground border-primary-foreground' : 'border-border/60',
+        ].join(' ')}
+      >
+        {active && (
+          <svg className="w-2.5 h-2.5 text-foreground" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+          </svg>
+        )}
+      </span>
+      <span className="truncate leading-snug">{label}</span>
+    </button>
+  );
 }
 
 function Board() {
@@ -110,29 +153,19 @@ function Board() {
     }
   }, [cityFilter, expertiseFilter]);
 
-  useEffect(() => {
-    loadFacets();
-  }, [loadFacets]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { loadFacets(); }, [loadFacets]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     const ev = getAuthChangedEventName();
-    const onAuth = () => {
-      loadFacets();
-      load();
-    };
+    const onAuth = () => { loadFacets(); load(); };
     window.addEventListener(ev, onAuth);
     return () => window.removeEventListener(ev, onAuth);
   }, [load, loadFacets]);
 
   const filterTags = useMemo(() => {
     const set = new Set();
-    posts.forEach((p) => {
-      if (p.tags[0]) set.add(p.tags[0]);
-    });
+    posts.forEach((p) => { if (p.tags[0]) set.add(p.tags[0]); });
     return [...set];
   }, [posts]);
 
@@ -141,312 +174,376 @@ function Board() {
     return posts.filter((p) => {
       const text = `${p.title} ${p.role} ${p.tags.join(' ')}`.toLowerCase();
       const searchOk = !q || text.includes(q);
-      const filterOk =
-        activeFilter === 'All' || p.tags.some((t) => t === activeFilter);
+      const filterOk = activeFilter === 'All' || p.tags.some((t) => t === activeFilter);
       return searchOk && filterOk;
     });
   }, [posts, searchTerm, activeFilter]);
 
   const authed = Boolean(getAuth()?.accessToken);
 
+  const activeFilterCount = [
+    searchTerm.trim() ? 1 : 0,
+    cityFilter ? 1 : 0,
+    expertiseFilter ? 1 : 0,
+    activeFilter !== 'All' ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const clearAll = () => {
+    setSearchTerm('');
+    setCityFilter('');
+    setExpertiseFilter('');
+    setActiveFilter('All');
+  };
+
   return (
-    <div className="min-h-[100dvh] pt-28 pb-20 px-6 lg:px-16 bg-background">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-8">
-          <div>
-            <motion.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="font-serif text-5xl md:text-7xl font-bold tracking-tight mb-4"
-            >
-              Discover Projects
-            </motion.h1>
+    <div className="min-h-[100dvh] pt-28 pb-20 bg-background relative overflow-hidden">
+      {/* Subtle dot-grid background */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+          backgroundSize: '30px 30px',
+        }}
+      />
+
+      <div className="px-6 lg:px-16 relative">
+        <div className="max-w-[1600px] mx-auto">
+
+          {/* ── Editorial Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-12"
+          >
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-6 border-b border-border/50">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
+                  <span className="w-4 h-px bg-muted-foreground/50 inline-block" />
+                  Health AI Platform
+                  <span className="w-4 h-px bg-muted-foreground/50 inline-block" />
+                </p>
+                <h1 className="font-serif text-5xl md:text-7xl lg:text-[5.5rem] leading-none tracking-tight">
+                  Discover
+                  <br />
+                  <span className="text-muted-foreground/40">Projects</span>
+                </h1>
+              </div>
+
+              <div className="flex flex-col items-start md:items-end gap-2 pb-1">
+                {!loading && authed && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-right"
+                  >
+                    <p className="font-serif text-4xl md:text-5xl text-foreground tabular-nums">
+                      {filteredPosts.length}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      active listing{filteredPosts.length !== 1 ? 's' : ''}
+                      {activeFilterCount > 0 ? ' matching filters' : ' available'}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-lg text-muted-foreground font-medium max-w-2xl"
+              className="mt-4 text-sm text-muted-foreground max-w-2xl leading-relaxed"
             >
-              Explore active listings from healthcare and engineering collaborators. Sign in to view
-              details and send meeting requests.
+              Explore active listings from healthcare and engineering collaborators.
+              Sign in to view details and send meeting requests.
             </motion.p>
-          </div>
-        </div>
+          </motion.div>
 
-        {!authed && (
-          <div className="mb-10 rounded-2xl border border-border/60 bg-card/50 p-6 flex flex-wrap items-center gap-4">
-            <p className="text-sm text-muted-foreground">Sign in to load live posts from the platform.</p>
-            <Link to="/auth?mode=login" className="btn-primary text-sm">
-              Sign in
-            </Link>
-          </div>
-        )}
-
-        {fetchErr && (
-          <p className="mb-6 text-sm text-destructive">{fetchErr}</p>
-        )}
-
-        <div className="flex flex-col xl:flex-row xl:items-start gap-12">
-          <aside className="xl:w-64 shrink-0 flex flex-col gap-10">
-            <div className="space-y-4">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
-                Quick Search
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Keywords..."
-                className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-colors"
-              />
+          {/* Auth warning */}
+          {!authed && (
+            <div className="mb-10 rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-wrap items-center gap-4">
+              <p className="text-sm text-muted-foreground">Sign in to load live posts from the platform.</p>
+              <Link to="/auth?mode=login" className="btn-primary text-sm py-2 px-5">
+                Sign in
+              </Link>
             </div>
+          )}
 
-            <div className="space-y-4">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
-                City
-              </label>
-              <ul className="space-y-3 font-medium text-sm">
-                <li
-                  className="flex items-center gap-3 cursor-pointer group select-none"
-                  onClick={() => setCityFilter('')}
-                >
-                  <div
-                    className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors ${
-                      cityFilter === '' ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                    }`}
-                  >
-                    {cityFilter === '' && (
-                      <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                      </svg>
+          {fetchErr && (
+            <p className="mb-6 text-sm text-destructive">{fetchErr}</p>
+          )}
+
+          <div className="flex flex-col xl:flex-row xl:items-start gap-10">
+
+            {/* ── Filter Sidebar ── */}
+            <motion.aside
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.08 }}
+              className="xl:w-60 shrink-0 xl:sticky xl:top-28"
+            >
+              <div className="rounded-2xl border border-border/50 bg-card/60 backdrop-blur-md overflow-hidden">
+                {/* Sidebar header */}
+                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal size={14} className="text-muted-foreground" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-foreground">
+                      Filters
+                    </span>
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X size={10} /> Clear {activeFilterCount}
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 space-y-6">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search keywords…"
+                      className="w-full bg-background/80 border border-border/60 rounded-xl pl-8 pr-3 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors placeholder:text-muted-foreground/50"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
                     )}
                   </div>
-                  <span className={cityFilter === '' ? 'text-primary font-bold' : 'text-foreground/80'}>All</span>
-                </li>
-                {cityOptions.map((c) => (
-                  <li
-                    key={c}
-                    className="flex items-start gap-3 cursor-pointer group select-none"
-                    onClick={() => setCityFilter(cityFilter === c ? '' : c)}
-                  >
-                    <div
-                      className={`w-5 h-5 shrink-0 mt-0.5 rounded border flex items-center justify-center transition-colors ${
-                        cityFilter === c ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                      }`}
-                    >
-                      {cityFilter === c && (
-                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                        </svg>
-                      )}
-                    </div>
-                    <span
-                      className={`min-w-0 break-words leading-snug ${
-                        cityFilter === c ? 'text-primary font-bold' : 'text-foreground/80 group-hover:text-foreground'
-                      }`}
-                    >
-                      {c}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
-            <div className="space-y-4">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
-                Expertise
-              </label>
-              <ul className="space-y-3 font-medium text-sm">
-                <li
-                  className="flex items-center gap-3 cursor-pointer group select-none"
-                  onClick={() => setExpertiseFilter('')}
-                >
-                  <div
-                    className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors ${
-                      expertiseFilter === '' ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                    }`}
-                  >
-                    {expertiseFilter === '' && (
-                      <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <span
-                    className={expertiseFilter === '' ? 'text-primary font-bold' : 'text-foreground/80'}
-                  >
-                    All
-                  </span>
-                </li>
-                {expertiseOptions.map((ex) => (
-                  <li
-                    key={ex}
-                    className="flex items-start gap-3 cursor-pointer group select-none"
-                    onClick={() => setExpertiseFilter(expertiseFilter === ex ? '' : ex)}
-                  >
-                    <div
-                      className={`w-5 h-5 shrink-0 mt-0.5 rounded border flex items-center justify-center transition-colors ${
-                        expertiseFilter === ex ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                      }`}
-                    >
-                      {expertiseFilter === ex && (
-                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                        </svg>
-                      )}
-                    </div>
-                    <span
-                      className={`min-w-0 break-words leading-snug ${
-                        expertiseFilter === ex ? 'text-primary font-bold' : 'text-foreground/80 group-hover:text-foreground'
-                      }`}
-                    >
-                      {ex}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-4">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2 flex w-full">
-                Field / domain
-              </label>
-              <ul className="space-y-3 font-medium text-sm">
-                <li
-                  className="flex items-center gap-3 cursor-pointer group select-none"
-                  onClick={() => setActiveFilter('All')}
-                >
-                  <div
-                    className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                      activeFilter === 'All' ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                    }`}
-                  >
-                    {activeFilter === 'All' && (
-                      <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className={activeFilter === 'All' ? 'text-primary font-bold' : 'text-foreground/80'}>All</span>
-                </li>
-                {filterTags.map((tag) => (
-                  <li
-                    key={tag}
-                    className="flex items-center gap-3 cursor-pointer group select-none"
-                    onClick={() => setActiveFilter(activeFilter === tag ? 'All' : tag)}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                        activeFilter === tag ? 'bg-primary border-primary' : 'border-border group-hover:border-primary'
-                      }`}
-                    >
-                      {activeFilter === tag && (
-                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                        </svg>
-                      )}
-                    </div>
-                    <span
-                      className={
-                        activeFilter === tag ? 'text-primary font-bold' : 'text-foreground/80 group-hover:text-foreground'
-                      }
-                    >
-                      {tag}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
-
-          <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-8 content-start items-start">
-            {loading && authed ? (
-              <p className="col-span-full flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="animate-spin" size={18} /> Loading posts…
-              </p>
-            ) : !authed ? (
-              <p className="col-span-full text-sm text-muted-foreground">Sign in to see projects.</p>
-            ) : filteredPosts.length === 0 ? (
-              <p className="col-span-full text-sm text-muted-foreground">
-                No active posts match your filters.
-              </p>
-            ) : (
-              <AnimatePresence>
-                {filteredPosts.map((post, i) => (
-                  <motion.div
-                    key={post.id}
-                    className="relative group w-full aspect-[16/9] rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
-                    initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.6, ease: 'easeOut' }}
-                  >
-                    <div className="absolute inset-0 z-0 bg-black">
-                      <img
-                        src={post.bg}
-                        alt=""
-                        className="w-full h-full object-cover opacity-90 dark:opacity-70 saturate-150 contrast-125 mix-blend-screen transition-transform duration-700 group-hover:scale-105"
+                  {/* City */}
+                  <FilterSection label="City" icon={MapPin}>
+                    <div className="space-y-0.5">
+                      <FilterOption
+                        label="All cities"
+                        active={cityFilter === ''}
+                        onClick={() => setCityFilter('')}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/30" />
+                      {cityOptions.map((c) => (
+                        <FilterOption
+                          key={c}
+                          label={c}
+                          active={cityFilter === c}
+                          onClick={() => setCityFilter(cityFilter === c ? '' : c)}
+                        />
+                      ))}
                     </div>
+                  </FilterSection>
 
-                    <div className="relative z-10 w-full h-full flex flex-col justify-between p-5 lg:p-6 text-white pb-4">
-                      <div className="flex justify-between items-start gap-3">
-                        <div>
-                          {post.isDiscreet && (
-                            <div className="mb-2 inline-flex items-center gap-1.5 bg-black/40 backdrop-blur-md rounded-full px-2 py-1 font-mono text-[8px] font-bold text-red-300 border border-red-500/20 uppercase tracking-widest">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> NDA Required
-                            </div>
-                          )}
-                          <h3
-                            className="font-sans text-lg font-bold leading-tight tracking-tight drop-shadow-md pr-1"
-                            style={{
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {post.title}
-                          </h3>
-                        </div>
-                      </div>
+                  {/* Expertise */}
+                  <FilterSection label="Expertise" icon={Cpu}>
+                    <div className="space-y-0.5">
+                      <FilterOption
+                        label="All expertise"
+                        active={expertiseFilter === ''}
+                        onClick={() => setExpertiseFilter('')}
+                      />
+                      {expertiseOptions.map((ex) => (
+                        <FilterOption
+                          key={ex}
+                          label={ex}
+                          active={expertiseFilter === ex}
+                          onClick={() => setExpertiseFilter(expertiseFilter === ex ? '' : ex)}
+                        />
+                      ))}
+                    </div>
+                  </FilterSection>
 
-                      <div>
-                        <div className="flex flex-wrap gap-1.5 mb-2 h-[26px] overflow-hidden">
-                          {post.tags.map((tag, ti) => (
-                            <span
-                              key={`${post.id}-t-${ti}`}
-                              className="bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest truncate max-w-[140px] inline-block"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                  {/* Domain */}
+                  <FilterSection label="Field / Domain" icon={Tag}>
+                    <div className="space-y-0.5">
+                      <FilterOption
+                        label="All fields"
+                        active={activeFilter === 'All'}
+                        onClick={() => setActiveFilter('All')}
+                      />
+                      {filterTags.map((tag) => (
+                        <FilterOption
+                          key={tag}
+                          label={tag}
+                          active={activeFilter === tag}
+                          onClick={() => setActiveFilter(activeFilter === tag ? 'All' : tag)}
+                        />
+                      ))}
+                    </div>
+                  </FilterSection>
+                </div>
+              </div>
+            </motion.aside>
+
+            {/* ── Project Grid ── */}
+            <div className="flex-1 min-w-0">
+              {/* Active filter chips */}
+              {activeFilterCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-wrap gap-2 mb-6"
+                >
+                  {searchTerm.trim() && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 px-3 py-1 text-xs font-medium">
+                      "{searchTerm.trim()}"
+                      <button type="button" onClick={() => setSearchTerm('')} className="text-muted-foreground hover:text-foreground">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                  {cityFilter && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 px-3 py-1 text-xs font-medium">
+                      <MapPin size={9} /> {cityFilter}
+                      <button type="button" onClick={() => setCityFilter('')} className="text-muted-foreground hover:text-foreground">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                  {expertiseFilter && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 px-3 py-1 text-xs font-medium">
+                      <Cpu size={9} /> {expertiseFilter}
+                      <button type="button" onClick={() => setExpertiseFilter('')} className="text-muted-foreground hover:text-foreground">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                  {activeFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 px-3 py-1 text-xs font-medium">
+                      <Tag size={9} /> {activeFilter}
+                      <button type="button" onClick={() => setActiveFilter('All')} className="text-muted-foreground hover:text-foreground">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                </motion.div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 content-start items-start">
+                {loading && authed ? (
+                  <p className="col-span-full flex items-center gap-2.5 text-muted-foreground py-10">
+                    <Loader2 className="animate-spin" size={18} /> Loading listings…
+                  </p>
+                ) : !authed ? (
+                  <p className="col-span-full text-sm text-muted-foreground py-10">
+                    Sign in to see projects.
+                  </p>
+                ) : filteredPosts.length === 0 ? (
+                  <div className="col-span-full py-16 text-center">
+                    <p className="text-sm font-medium text-foreground mb-1">No listings found</p>
+                    <p className="text-xs text-muted-foreground mb-4">Try adjusting your filters or search term.</p>
+                    {activeFilterCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        className="text-xs font-semibold text-foreground underline underline-offset-2 hover:no-underline"
+                      >
+                        Clear all filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <AnimatePresence>
+                    {filteredPosts.map((post, i) => (
+                      <motion.div
+                        key={post.id}
+                        className="relative group w-full aspect-[16/9] rounded-[1.75rem] overflow-hidden shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_24px_48px_rgba(0,0,0,0.22)]"
+                        initial={{ opacity: 0, scale: 0.96, y: 24 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ delay: i * 0.045, duration: 0.55, ease: 'easeOut' }}
+                      >
+                        {/* Background image */}
+                        <div className="absolute inset-0 z-0 bg-black">
+                          <img
+                            src={post.bg}
+                            alt=""
+                            className="w-full h-full object-cover opacity-90 dark:opacity-70 saturate-150 contrast-125 mix-blend-screen transition-transform duration-700 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/20" />
                         </div>
-                        <div className="flex items-center justify-between border-t border-white/20 pt-3">
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] lg:text-[10px] uppercase text-white/60 font-bold tracking-widest mb-0.5">
-                              Seeking
-                            </span>
-                            <span className="text-[13px] lg:text-sm font-semibold truncate max-w-[140px]">{post.role}</span>
-                            {post.city && (
-                              <span className="text-[9px] lg:text-[10px] uppercase text-white/45 font-bold tracking-widest mt-1 truncate max-w-[160px]">
-                                {post.city}
-                              </span>
+
+                        {/* Index badge */}
+                        <div className="absolute top-4 right-4 z-10 w-7 h-7 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center">
+                          <span className="text-[9px] font-bold text-white/60 tabular-nums">
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="relative z-10 w-full h-full flex flex-col justify-between p-5 lg:p-6 text-white">
+                          <div>
+                            {post.isDiscreet && (
+                              <div className="mb-2.5 inline-flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 font-mono text-[8px] font-bold text-red-300 border border-red-500/25 uppercase tracking-widest">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                                NDA Required
+                              </div>
                             )}
+                            <h3
+                              className="font-sans text-[17px] font-bold leading-tight tracking-tight drop-shadow-sm"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {post.title}
+                            </h3>
                           </div>
-                          <Link
-                            to={`/post/${post.id}`}
-                            className="bg-white text-black hover:bg-zinc-200 transition-colors rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider shadow-lg shrink-0"
-                          >
-                            Details
-                          </Link>
+
+                          <div>
+                            {/* Tags */}
+                            <div className="flex flex-wrap gap-1.5 mb-3 h-[22px] overflow-hidden">
+                              {post.tags.map((tag, ti) => (
+                                <span
+                                  key={`${post.id}-t-${ti}`}
+                                  className="bg-white/[0.12] backdrop-blur-md border border-white/15 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest truncate max-w-[130px] inline-block"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Footer row */}
+                            <div className="flex items-end justify-between border-t border-white/15 pt-3 gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[9px] uppercase text-white/50 font-bold tracking-widest mb-0.5">
+                                  Seeking
+                                </p>
+                                <p className="text-[13px] font-semibold truncate leading-tight">
+                                  {post.role}
+                                </p>
+                                {post.city && (
+                                  <p className="text-[9px] uppercase text-white/40 font-bold tracking-widest mt-1 truncate">
+                                    {post.city}
+                                  </p>
+                                )}
+                              </div>
+                              <Link
+                                to={`/post/${post.id}`}
+                                className="shrink-0 bg-white text-black hover:bg-white/90 transition-colors rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider shadow-md"
+                              >
+                                Details
+                              </Link>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
