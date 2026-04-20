@@ -16,6 +16,7 @@ module.exports = {
   port: parseInt(process.env.PORT) || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',
   dbAutoSync: process.env.DB_AUTO_SYNC === 'true' || process.env.NODE_ENV === 'development',
+  dbSyncAlter: process.env.DB_SYNC_ALTER === 'true',
   db: {
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT) || 3306,

@@ -5,6 +5,21 @@ import { getDashboardPathByRole, setAuth } from '@/lib/auth';
 
 const meshBackground = "/assets/mesh_5.png";
 
+async function parseApiResponse(response, fallbackMessage) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => ({}));
+  }
+
+  const text = await response.text().catch(() => '');
+  if (text) {
+    return { message: text };
+  }
+
+  return { message: fallbackMessage };
+}
+
 function AuthPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -60,7 +75,10 @@ function AuthPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(
+          response,
+          'Login failed. Server did not return a valid response.',
+        );
         if (!response.ok) {
           throw new Error(data.errors?.[0] || data.message || 'Login failed.');
         }
@@ -84,7 +102,10 @@ function AuthPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(
+          response,
+          'Registration failed. Server did not return a valid response.',
+        );
         if (!response.ok) {
           throw new Error(data.errors?.[0] || data.message || 'Registration failed.');
         }

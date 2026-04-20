@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
+import { DatePickerField } from '@/components/ui/date-picker-field';
 
 const inputClass =
   'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -507,15 +508,21 @@ function PostForm() {
                       <label htmlFor="post-expiry" className={labelClass}>
                         Target end date
                       </label>
+                      <DatePickerField
+                        value={formData.expiration}
+                        onChange={(date) => setFormData({ ...formData, expiration: date })}
+                        placeholder="Select target date"
+                        min={new Date().toISOString().slice(0, 10)}
+                      />
                       <input
                         id="post-expiry"
-                        type="date"
-                        className={inputClass}
-                        required
+                        type="text"
                         value={formData.expiration}
-                        onChange={(e) =>
-                          setFormData({ ...formData, expiration: e.target.value })
-                        }
+                        onChange={() => {}}
+                        required
+                        aria-hidden="true"
+                        tabIndex={-1}
+                        className="h-0 w-0 opacity-0"
                       />
                     </div>
                   </motion.div>

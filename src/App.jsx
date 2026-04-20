@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
+import FaqPage from './pages/FaqPage';
+import TroubleshootingPage from './pages/TroubleshootingPage';
+import ContactSupportPage from './pages/ContactSupportPage';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import PostForm from './pages/PostForm';
@@ -27,6 +30,10 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<LandingPage />} />
+            <Route path="faq" element={<Navigate to="/help/faq" replace />} />
+            <Route path="help/faq" element={<FaqPage />} />
+            <Route path="help/troubleshooting" element={<TroubleshootingPage />} />
+            <Route path="help/contact-support" element={<ContactSupportPage />} />
             <Route path="auth" element={<AuthPage />} />
             <Route
               path="dashboard/engineer"

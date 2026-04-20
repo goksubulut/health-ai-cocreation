@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Send, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Clock, Send, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { DatePickerField } from '@/components/ui/date-picker-field';
 
 function MeetingRequest() {
   const navigate = useNavigate();
   const [requested, setRequested] = useState(false);
+  const [meetingDate, setMeetingDate] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,8 +40,21 @@ function MeetingRequest() {
 
             <div style={{display: 'flex', gap: '1rem', marginBottom: '2rem'}}>
               <div className="form-group" style={{flex: 1}}>
-                <Calendar size={18} className="input-icon" />
-                <input type="date" required style={{paddingLeft: '44px'}}/>
+                <DatePickerField
+                  value={meetingDate}
+                  onChange={setMeetingDate}
+                  placeholder="Select meeting date"
+                  min={new Date().toISOString().slice(0, 10)}
+                />
+                <input
+                  type="text"
+                  value={meetingDate}
+                  onChange={() => {}}
+                  required
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  className="h-0 w-0 opacity-0"
+                />
               </div>
               <div className="form-group" style={{flex: 1}}>
                 <Clock size={18} className="input-icon" />

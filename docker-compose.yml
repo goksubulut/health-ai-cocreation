@@ -49,6 +49,7 @@ services:
       DB_CONNECT_RETRIES: 30
       DB_CONNECT_DELAY_MS: 3000
       DB_AUTO_SYNC: "true"
+      DB_SYNC_ALTER: "true"
       SKIP_EMAIL_VERIFICATION: "true"
     ports:
       - "3001:3001"
