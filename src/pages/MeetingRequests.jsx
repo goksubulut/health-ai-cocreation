@@ -149,6 +149,11 @@ function MeetingRequests() {
                             NDA accepted
                           </span>
                         )}
+                        {m.post?.status === 'expired' && m.status === 'cancelled' && (
+                          <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                            Closed (listing expired)
+                          </span>
+                        )}
                       </div>
                       <p className="font-medium truncate">
                         {m.post?.title || `Post #${m.post_id}`}

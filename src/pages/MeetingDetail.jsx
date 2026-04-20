@@ -253,6 +253,10 @@ function MeetingDetail() {
 
   const slots = Array.isArray(m?.time_slots) ? m.time_slots : [];
 
+  const listingOpen = Boolean(
+    m?.post && ['active', 'meeting_scheduled'].includes(m.post.status)
+  );
+
   return (
     <div className="min-h-[100dvh] pt-28 pb-16 px-6 lg:px-16 bg-background">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -336,34 +340,45 @@ function MeetingDetail() {
               </div>
             )}
 
-            {isOwner && m.status === 'pending' && (
+            {m.post?.status === 'expired' && (
+              <div className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-950 dark:text-red-100">
+                <p className="font-semibold">Listing expired</p>
+                <p className="mt-1.5 leading-relaxed opacity-95">
+                  {m.status === 'cancelled'
+                    ? 'This listing reached its expiry date before you accepted or declined. The meeting request was closed automatically — accept and decline are no longer available.'
+                    : 'This listing is no longer active. Actions that require an open listing are disabled.'}
+                </p>
+              </div>
+            )}
+
+            {isOwner && m.status === 'pending' && listingOpen && (
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  disabled={actionBusy}
+                  disabled={actionBusy || !listingOpen}
                   onClick={accept}
-                  className="btn-primary inline-flex items-center gap-2"
+                  className="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <Check size={16} /> Accept
                 </button>
                 <button
                   type="button"
-                  disabled={actionBusy}
+                  disabled={actionBusy || !listingOpen}
                   onClick={decline}
-                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <X size={16} /> Decline
                 </button>
               </div>
             )}
 
-            {isOwner && m.status === 'accepted' && (
+            {isOwner && m.status === 'accepted' && listingOpen && (
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  disabled={actionBusy}
+                  disabled={actionBusy || !listingOpen}
                   onClick={decline}
-                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <X size={16} /> Decline
                 </button>
@@ -406,12 +421,14 @@ function MeetingDetail() {
                         isOwner &&
                         uid != null &&
                         s.proposed_by !== uid &&
-                        m.status === 'accepted';
+                        m.status === 'accepted' &&
+                        listingOpen;
                       const requesterCanEdit =
                         isRequester &&
                         uid != null &&
                         s.proposed_by === uid &&
-                        ['pending', 'accepted'].includes(m.status);
+                        ['pending', 'accepted'].includes(m.status) &&
+                        listingOpen;
                       return (
                         <li
                           key={s.id}
@@ -503,6 +520,7 @@ function MeetingDetail() {
                 )}
 
                 {isRequester &&
+                  listingOpen &&
                   ['pending', 'accepted'].includes(m.status) &&
                   slots.length + slotInputs.filter(Boolean).length < 5 && (
                     <form
@@ -549,8 +567,8 @@ function MeetingDetail() {
                         )}
                         <button
                           type="submit"
-                          disabled={actionBusy}
-                          className="btn-primary shrink-0 ml-auto pl-6 pr-7"
+                          disabled={actionBusy || !listingOpen}
+                          className="btn-primary shrink-0 ml-auto pl-6 pr-7 disabled:opacity-50 disabled:pointer-events-none"
                         >
                           Propose {slotInputs.filter(Boolean).length || ''} slot(s)
                         </button>

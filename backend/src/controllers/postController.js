@@ -85,9 +85,43 @@ const STATUS_TRANSITIONS = {
 const isValidStatusTransition = (from, to) =>
   STATUS_TRANSITIONS[from]?.includes(to) === true;
 
+/** YYYY-MM-DD for server's local calendar date (compare to DATEONLY expiryDate). */
+function calendarTodayYMD() {
+  const n = new Date();
+  const y = n.getFullYear();
+  const m = String(n.getMonth() + 1).padStart(2, '0');
+  const d = String(n.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Sets status to expired when expiry date is strictly before today.
+ * Keeps discovery (GET /api/posts) and status badges consistent with calendar expiry.
+ */
+async function expireStalePosts() {
+  const today = calendarTodayYMD();
+  const staleRows = await Post.findAll({
+    attributes: ['id'],
+    where: {
+      status: { [Op.in]: ['active', 'meeting_scheduled'] },
+      expiryDate: { [Op.lt]: today },
+    },
+  });
+  const staleIds = staleRows.map((r) => r.id);
+  if (staleIds.length === 0) return;
+
+  await Post.update({ status: 'expired' }, { where: { id: { [Op.in]: staleIds } } });
+
+  await MeetingRequest.update(
+    { status: 'cancelled' },
+    { where: { postId: { [Op.in]: staleIds }, status: 'pending' } }
+  );
+}
+
 // ── GET /api/posts ─────────────────────────────────────────────
 const getPosts = async (req, res) => {
   try {
+    await expireStalePosts();
     const {
       domain,
       city,
@@ -141,6 +175,7 @@ const getPosts = async (req, res) => {
 // ── GET /api/posts/mine ────────────────────────────────────────
 const getMyPosts = async (req, res) => {
   try {
+    await expireStalePosts();
     const { page = 1, limit = 10 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
@@ -177,6 +212,7 @@ const getMyPosts = async (req, res) => {
 // ── GET /api/posts/matches ─────────────────────────────────────
 const getMatches = async (req, res) => {
   try {
+    await expireStalePosts();
     const { page = 1, limit = 10 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
@@ -236,6 +272,7 @@ const getMatches = async (req, res) => {
 // ── GET /api/posts/:id ─────────────────────────────────────────
 const getPostById = async (req, res) => {
   try {
+    await expireStalePosts();
     const post = await Post.findByPk(req.params.id, {
       include: [
         {
@@ -438,4 +475,5 @@ module.exports = {
   updatePost,
   updatePostStatus,
   deletePost,
+  expireStalePosts,
 };

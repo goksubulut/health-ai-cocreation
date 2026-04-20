@@ -16,9 +16,19 @@ const {
   sendMeetingScheduledNotification,
   sendMeetingCancelledNotification,
 } = require('../services/emailService');
+const { expireStalePosts } = require('./postController');
 
 const USER_ATTRS = ['id', 'email', 'firstName', 'lastName', 'institution', 'city', 'country'];
-const POST_ATTRS_DETAIL = ['id', 'title', 'domain', 'description', 'status', 'userId', 'confidentiality'];
+const POST_ATTRS_DETAIL = [
+  'id',
+  'title',
+  'domain',
+  'description',
+  'status',
+  'userId',
+  'confidentiality',
+  'expiryDate',
+];
 
 const isParty = (meeting, userId) =>
   meeting.requesterId === userId || meeting.postOwnerId === userId;
@@ -48,6 +58,7 @@ const serializePost = (p) => {
     description: x.description,
     status: x.status,
     confidentiality: x.confidentiality,
+    expiry_date: x.expiryDate,
   };
 };
 
@@ -88,9 +99,13 @@ const serializeMeeting = (m) => {
 const otherPartyId = (meeting, userId) =>
   meeting.requesterId === userId ? meeting.postOwnerId : meeting.requesterId;
 
+const postAllowsCollaboration = (post) =>
+  Boolean(post && ['active', 'meeting_scheduled'].includes(post.status));
+
 // ── POST /api/meetings ─────────────────────────────────────────
 const createMeetingRequest = async (req, res) => {
   try {
+    await expireStalePosts();
     const { post_id: postId, message, nda_accepted: ndaAcceptedBody } = req.body;
     const requesterId = req.user.id;
 
@@ -193,6 +208,7 @@ const createMeetingRequest = async (req, res) => {
 // ── GET /api/meetings ──────────────────────────────────────────
 const getMyMeetings = async (req, res) => {
   try {
+    await expireStalePosts();
     const userId = req.user.id;
     const { type = 'all', status: statusFilter } = req.query;
 
@@ -228,6 +244,7 @@ const getMyMeetings = async (req, res) => {
 // ── GET /api/meetings/:id ──────────────────────────────────────
 const getMeetingById = async (req, res) => {
   try {
+    await expireStalePosts();
     const meeting = await MeetingRequest.findByPk(req.params.id, {
       include: [
         { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
@@ -259,6 +276,7 @@ const getMeetingById = async (req, res) => {
 // ── PATCH /api/meetings/:id/accept ────────────────────────────
 const acceptMeetingRequest = async (req, res) => {
   try {
+    await expireStalePosts();
     const meeting = await MeetingRequest.findByPk(req.params.id, {
       include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
     });
@@ -272,6 +290,16 @@ const acceptMeetingRequest = async (req, res) => {
 
     if (meeting.status !== 'pending') {
       return res.status(400).json({ error: 'Only pending requests can be accepted.' });
+    }
+
+    const post = meeting.post;
+    if (!post || !['active', 'meeting_scheduled'].includes(post.status)) {
+      return res.status(400).json({
+        error:
+          post?.status === 'expired'
+            ? 'This listing has expired. You can no longer accept meeting requests for it.'
+            : 'This listing is not accepting meeting actions.',
+      });
     }
 
     await meeting.update({ status: 'accepted' });
@@ -317,6 +345,7 @@ const acceptMeetingRequest = async (req, res) => {
 // ── PATCH /api/meetings/:id/decline ───────────────────────────
 const declineMeetingRequest = async (req, res) => {
   try {
+    await expireStalePosts();
     const meeting = await MeetingRequest.findByPk(req.params.id, {
       include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
     });
@@ -326,6 +355,15 @@ const declineMeetingRequest = async (req, res) => {
 
     if (meeting.postOwnerId !== req.user.id) {
       return res.status(403).json({ message: 'Only the post owner can decline this request.' });
+    }
+
+    if (meeting.status === 'cancelled') {
+      return res.status(400).json({
+        error:
+          meeting.post?.status === 'expired'
+            ? 'This request was closed because the listing expired before you responded.'
+            : 'This meeting request was already cancelled.',
+      });
     }
 
     if (!['pending', 'accepted'].includes(meeting.status)) {
@@ -371,13 +409,25 @@ const declineMeetingRequest = async (req, res) => {
 // ── POST /api/meetings/:id/slots ──────────────────────────────
 const proposeSlots = async (req, res) => {
   try {
-    const meeting = await MeetingRequest.findByPk(req.params.id);
+    await expireStalePosts();
+    const meeting = await MeetingRequest.findByPk(req.params.id, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting request not found.' });
     }
 
     if (meeting.requesterId !== req.user.id) {
       return res.status(403).json({ message: 'Only the requester can propose time slots.' });
+    }
+
+    if (!postAllowsCollaboration(meeting.post)) {
+      return res.status(400).json({
+        error:
+          meeting.post?.status === 'expired'
+            ? 'This listing has expired; you can no longer add or change time slots.'
+            : 'This listing is not open for collaboration.',
+      });
     }
 
     if (!['pending', 'accepted'].includes(meeting.status)) {
@@ -425,16 +475,28 @@ const proposeSlots = async (req, res) => {
 // ── PATCH /api/meetings/:id/slots/:slotId ─────────────────────
 const updateSlot = async (req, res) => {
   try {
+    await expireStalePosts();
     const meetingId = parseInt(req.params.id, 10);
     const slotId = parseInt(req.params.slotId, 10);
 
-    const meeting = await MeetingRequest.findByPk(meetingId);
+    const meeting = await MeetingRequest.findByPk(meetingId, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting request not found.' });
     }
 
     if (meeting.requesterId !== req.user.id) {
       return res.status(403).json({ message: 'Only the requester can edit time slots.' });
+    }
+
+    if (!postAllowsCollaboration(meeting.post)) {
+      return res.status(400).json({
+        error:
+          meeting.post?.status === 'expired'
+            ? 'This listing has expired; time slots can no longer be edited.'
+            : 'Time slots cannot be edited for this listing.',
+      });
     }
 
     if (!['pending', 'accepted'].includes(meeting.status)) {
@@ -478,16 +540,28 @@ const updateSlot = async (req, res) => {
 // ── DELETE /api/meetings/:id/slots/:slotId ────────────────────
 const deleteSlot = async (req, res) => {
   try {
+    await expireStalePosts();
     const meetingId = parseInt(req.params.id, 10);
     const slotId = parseInt(req.params.slotId, 10);
 
-    const meeting = await MeetingRequest.findByPk(meetingId);
+    const meeting = await MeetingRequest.findByPk(meetingId, {
+      include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
+    });
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting request not found.' });
     }
 
     if (meeting.requesterId !== req.user.id) {
       return res.status(403).json({ message: 'Only the requester can delete time slots.' });
+    }
+
+    if (!postAllowsCollaboration(meeting.post)) {
+      return res.status(400).json({
+        error:
+          meeting.post?.status === 'expired'
+            ? 'This listing has expired; time slots can no longer be changed.'
+            : 'Time slots cannot be deleted for this listing.',
+      });
     }
 
     if (!['pending', 'accepted'].includes(meeting.status)) {
@@ -530,6 +604,7 @@ const deleteSlot = async (req, res) => {
 // ── PATCH /api/meetings/:id/slots/:slotId/confirm ─────────────
 const confirmSlot = async (req, res) => {
   try {
+    await expireStalePosts();
     const meetingId = parseInt(req.params.id, 10);
     const slotId = parseInt(req.params.slotId, 10);
 
@@ -553,6 +628,15 @@ const confirmSlot = async (req, res) => {
 
     if (!isParty(meeting, req.user.id)) {
       return res.status(403).json({ message: 'You do not have access to this meeting request.' });
+    }
+
+    if (!postAllowsCollaboration(meeting.post)) {
+      return res.status(400).json({
+        error:
+          meeting.post?.status === 'expired'
+            ? 'This listing has expired; a time slot can no longer be confirmed.'
+            : 'This action is not available for this listing.',
+      });
     }
 
     if (meeting.status !== 'accepted') {
@@ -617,6 +701,7 @@ const confirmSlot = async (req, res) => {
 // ── DELETE /api/meetings/:id ───────────────────────────────────
 const cancelMeetingRequest = async (req, res) => {
   try {
+    await expireStalePosts();
     const meeting = await MeetingRequest.findByPk(req.params.id, {
       include: [{ model: Post, as: 'post', attributes: ['id', 'status'] }],
     });

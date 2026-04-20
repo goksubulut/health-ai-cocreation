@@ -719,7 +719,11 @@ function Profile() {
                                 Stage: {STAGE_LABELS[p.project_stage] || p.project_stage}
                               </span>
                             )}
-                            {p.expiry_date && <span>· Expires {p.expiry_date}</span>}
+                            {p.expiry_date && (
+                              <span>
+                                · {p.status === 'expired' ? 'Expired' : 'Expires'} {p.expiry_date}
+                              </span>
+                            )}
                             <ArrowUpRight
                               size={14}
                               className="inline opacity-0 transition-opacity group-hover:opacity-100 sm:ml-1"

@@ -1,9 +1,76 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, X, SlidersHorizontal, MapPin, Cpu, Tag, Heart } from 'lucide-react';
 import ThreeDImageGallery from '@/components/ui/3d-image-gallery';
 import { boardListings } from '@/lib/showcaseListings';
+import { getAuth, getAuthChangedEventName } from '@/lib/auth';
+
+const BOARD_FAVORITES_KEY = 'health-ai-cocreation:board-favorites';
+const BOARD_VIEW_MODE_KEY = 'health-ai-cocreation:board-view-mode';
+
+function readStoredFavorites() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(BOARD_FAVORITES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id) => typeof id === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Maps GET /api/posts row to the discover card model (aligned with showcase entries).
+ * @param {Record<string, unknown>} p
+ */
+function mapApiPostToBoardListing(p) {
+  const rawId = p.id;
+  const idNum = typeof rawId === 'number' ? rawId : parseInt(String(rawId), 10);
+  const domainRaw = typeof p.domain === 'string' ? p.domain.trim() : '';
+  const domainTags = domainRaw
+    ? domainRaw.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+  const expertise =
+    typeof p.required_expertise === 'string' && p.required_expertise.trim()
+      ? p.required_expertise.trim()
+      : 'Collaborator';
+  const tags = domainTags.length > 0 ? domainTags : [expertise];
+  const desc = typeof p.description === 'string' ? p.description : '';
+  const title =
+    typeof p.title === 'string' && p.title.trim() ? p.title.trim() : 'Untitled listing';
+  const cityRaw = typeof p.city === 'string' ? p.city.trim() : '';
+  const meshIdx = Number.isFinite(idNum) && idNum > 0 ? ((idNum - 1) % 5) + 1 : 1;
+  const summary = desc.length > 260 ? `${desc.slice(0, 257)}…` : desc || title;
+  const distanceKm = Number.isFinite(idNum)
+    ? ((Math.abs(idNum) * 17) % 500) / 100 + 0.5
+    : 2.0;
+
+  return {
+    id: rawId,
+    title,
+    role: expertise,
+    city: cityRaw,
+    tags,
+    distanceKm,
+    summary,
+    imageUrl: `/assets/mesh_${meshIdx}.png`,
+    isMock: false,
+  };
+}
+
+function readStoredViewMode() {
+  if (typeof window === 'undefined') return 'nearby';
+  try {
+    const raw = window.localStorage.getItem(BOARD_VIEW_MODE_KEY);
+    if (raw === 'all' || raw === 'nearby') return raw;
+    return 'nearby';
+  } catch {
+    return 'nearby';
+  }
+}
 
 function FilterSection({ label, icon: Icon, children }) {
   return (
@@ -50,13 +117,78 @@ function FilterOption({ label, active, onClick }) {
 
 function Board() {
   const navigate = useNavigate();
+  const auth = getAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState('');
-  const [viewMode, setViewMode] = useState('nearby');
-  const [posts] = useState(boardListings);
-  const [favoriteIds, setFavoriteIds] = useState([]);
+  const [viewMode, setViewMode] = useState(readStoredViewMode);
+  const [liveListings, setLiveListings] = useState([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveErr, setLiveErr] = useState('');
+  const [favoriteIds, setFavoriteIds] = useState(readStoredFavorites);
+
+  const loadLivePosts = async () => {
+    const token = getAuth()?.accessToken;
+    if (!token) {
+      setLiveListings([]);
+      setLiveLoading(false);
+      setLiveErr('');
+      return;
+    }
+    setLiveLoading(true);
+    setLiveErr('');
+    try {
+      const res = await fetch('/api/posts?limit=100', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          typeof json.message === 'string' ? json.message : 'Failed to load listings.'
+        );
+      }
+      const rows = Array.isArray(json.data) ? json.data : [];
+      setLiveListings(
+        rows
+          .filter((p) => ['active', 'meeting_scheduled'].includes(p.status))
+          .map(mapApiPostToBoardListing)
+      );
+    } catch (e) {
+      setLiveErr(e instanceof Error ? e.message : 'Failed to load listings.');
+      setLiveListings([]);
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLivePosts();
+    const ev = getAuthChangedEventName();
+    window.addEventListener(ev, loadLivePosts);
+    return () => window.removeEventListener(ev, loadLivePosts);
+  }, []);
+
+  const posts = useMemo(
+    () => [...liveListings, ...boardListings.map((p) => ({ ...p, isMock: true }))],
+    [liveListings]
+  );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(BOARD_FAVORITES_KEY, JSON.stringify(favoriteIds));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [favoriteIds]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(BOARD_VIEW_MODE_KEY, viewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [viewMode]);
 
   const cityOptions = useMemo(
     () =>
@@ -175,8 +307,25 @@ function Board() {
               transition={{ delay: 0.1 }}
               className="mt-3 text-sm text-muted-foreground max-w-2xl leading-relaxed"
             >
-              Explore listing cards in a spatial discover view centered on your location.
+              Explore listing cards in a spatial discover view centered on your location. Live posts are
+              loaded from the platform; curated showcase cards are always available.
             </motion.p>
+            {liveErr ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {liveErr}
+              </p>
+            ) : null}
+            {!auth?.accessToken ? (
+              <p className="mt-2 text-xs text-muted-foreground max-w-2xl">
+                <Link to="/auth" className="font-medium text-foreground underline underline-offset-2">
+                  Sign in
+                </Link>{' '}
+                to load active listings from the database.
+              </p>
+            ) : null}
+            {auth?.accessToken && liveLoading ? (
+              <p className="mt-2 text-xs text-muted-foreground">Loading live listings…</p>
+            ) : null}
           </motion.div>
 
           <div className="flex flex-col xl:flex-row xl:items-start gap-10">
@@ -346,7 +495,7 @@ function Board() {
                         key={`fav-${post.id}`}
                         type="button"
                         className="rounded-full border border-border/60 px-3 py-1 text-xs hover:bg-muted/60 transition-colors"
-                        onClick={() => {}}
+                        onClick={() => navigate(`/post/${post.id}`)}
                       >
                         {post.title}
                       </button>
@@ -435,18 +584,40 @@ function Board() {
                       return (
                         <div
                           key={`all-${post.id}`}
-                          className="rounded-xl border border-border/60 bg-background/70 p-3"
+                          role="button"
+                          tabIndex={0}
+                          className="rounded-xl border border-border/60 bg-background/70 p-3 transition-colors hover:border-foreground/25 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          onClick={() => navigate(`/post/${post.id}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              navigate(`/post/${post.id}`);
+                            }
+                          }}
                         >
-                          <img
-                            src={post.imageUrl}
-                            alt={post.title}
-                            className="h-36 w-full rounded-lg object-cover"
-                            loading="lazy"
-                          />
+                          <div className="relative">
+                            <span
+                              className={[
+                                'absolute top-2 left-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                                post.isMock
+                                  ? 'bg-muted/90 text-muted-foreground'
+                                  : 'bg-emerald-600/90 text-white',
+                              ].join(' ')}
+                            >
+                              {post.isMock ? 'Showcase' : 'Live'}
+                            </span>
+                            <img
+                              src={post.imageUrl}
+                              alt={post.title}
+                              className="h-36 w-full rounded-lg object-cover pointer-events-none"
+                              loading="lazy"
+                            />
+                          </div>
                           <div className="mt-2.5">
                             <p className="text-sm font-semibold truncate">{post.title}</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {post.city} • {post.role}
+                              {post.city ? `${post.city} • ` : ''}
+                              {post.role}
                             </p>
                             <div className="mt-2 flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">
@@ -454,7 +625,10 @@ function Board() {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => toggleFavorite(String(post.id))}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(String(post.id));
+                                }}
                                 className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-xs hover:bg-muted/60"
                               >
                                 <Heart size={12} fill={isFavorite ? 'currentColor' : 'none'} />

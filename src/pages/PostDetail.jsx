@@ -22,6 +22,24 @@ const STAGE_LABELS = {
   pre_deployment: 'Pre-deployment',
 };
 
+const STATUS_SHORT_LABELS = {
+  draft: 'Draft',
+  active: 'Active',
+  meeting_scheduled: 'Meeting scheduled',
+  partner_found: 'Partner found',
+  expired: 'Expired',
+  removed_by_admin: 'Removed',
+};
+
+const STATUS_BADGE_STYLES = {
+  draft: 'bg-zinc-600/90 text-white',
+  active: 'bg-emerald-600/90 text-white',
+  meeting_scheduled: 'bg-blue-600/90 text-white',
+  partner_found: 'bg-purple-600/90 text-white',
+  expired: 'bg-red-600/90 text-white',
+  removed_by_admin: 'bg-red-950/90 text-red-100',
+};
+
 const MOCK_STAGE_MAP = {
   Planning: 'idea',
   Research: 'concept_validation',
@@ -341,6 +359,15 @@ function PostDetail() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
             <div className="relative z-10 p-8 sm:p-10 text-white">
               <div className="flex flex-wrap gap-2 mb-4">
+                {!post.isMock && post.status && (
+                  <span
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-sm ${
+                      STATUS_BADGE_STYLES[post.status] || 'bg-white/15 text-white'
+                    }`}
+                  >
+                    {STATUS_SHORT_LABELS[post.status] || post.status}
+                  </span>
+                )}
                 {tags.map((tag) => (
                   <span
                     key={tag}
@@ -480,8 +507,19 @@ function PostDetail() {
             </div>
 
             {!['active', 'meeting_scheduled'].includes(post.status) && (
-              <p className="mb-4 text-sm text-amber-600 dark:text-amber-400">
-                This post is not accepting new meeting requests ({post.status}).
+              <p
+                className={[
+                  'mb-4 text-sm',
+                  post.status === 'expired'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-amber-600 dark:text-amber-400',
+                ].join(' ')}
+              >
+                {post.status === 'expired'
+                  ? isOwner
+                    ? 'This listing has expired and is no longer visible in Discovery. It remains in your post history.'
+                    : 'This listing has expired and is no longer visible in Discovery or accepting meeting requests.'
+                  : `This post is not accepting new meeting requests (${post.status}).`}
               </p>
             )}
 
