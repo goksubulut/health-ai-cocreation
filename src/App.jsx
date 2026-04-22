@@ -21,6 +21,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPosts from './pages/admin/AdminPosts';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminLogs from './pages/admin/AdminLogs';
+import AdminStats from './pages/admin/AdminStats';
 import './index.css';
 import { ThemeProvider } from './components/theme-provider';
 
@@ -110,6 +111,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="posts" element={<AdminPosts />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="stats" element={<AdminStats />} />
             <Route path="logs" element={<AdminLogs />} />
           </Route>
         </Routes>

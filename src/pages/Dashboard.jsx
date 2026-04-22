@@ -20,6 +20,8 @@ import {
 import { Link } from 'react-router-dom';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { CreatePostCTA } from '@/components/ui/hand-writing-text';
+import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
+import { calculateProjectMatchScore } from '@/lib/matchScore';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -28,6 +30,22 @@ const STAGE_LABELS = {
   pilot: 'Pilot',
   pre_deployment: 'Pre-deployment',
 };
+
+function mapPostToDiscoverCard(post) {
+  const rawId = post?.id;
+  const idNum = typeof rawId === 'number' ? rawId : parseInt(String(rawId), 10);
+  const expertise =
+    typeof post?.required_expertise === 'string' && post.required_expertise.trim()
+      ? post.required_expertise.trim()
+      : 'Collaborator';
+  const city = typeof post?.city === 'string' ? post.city.trim() : '';
+  const meshIdx = Number.isFinite(idNum) && idNum > 0 ? ((idNum - 1) % 5) + 1 : 1;
+  return {
+    role: expertise,
+    city,
+    imageUrl: `/assets/mesh_${meshIdx}.png`,
+  };
+}
 
 function formatPersonName(u) {
   if (!u) return 'Someone';
@@ -75,21 +93,41 @@ function buildMeetingNotifications(list, uid) {
           text: `Your request for "${postTitle}" was declined by ${formatPersonName(m.post_owner)}.`,
         });
       } else if (m.status === 'accepted') {
+        const calendarUrl = m.confirmed_slot
+          ? buildGoogleCalendarDeeplink({
+              title: postTitle,
+              details:
+                typeof m.post?.description === 'string' && m.post.description.trim()
+                  ? m.post.description
+                  : `Meeting accepted with ${formatPersonName(m.post_owner)}.`,
+              startIso: m.confirmed_slot,
+            })
+          : '';
         items.push({
           key: `out-${m.id}-accepted`,
           kind: 'accepted',
           meetingId: m.id,
           at: updatedAt,
           text: `Your request for "${postTitle}" was accepted by ${formatPersonName(m.post_owner)}.`,
+          calendarUrl,
         });
       } else if (m.status === 'scheduled' && m.confirmed_slot) {
         const when = new Date(m.confirmed_slot).toLocaleString();
+        const calendarUrl = buildGoogleCalendarDeeplink({
+          title: postTitle,
+          details:
+            typeof m.post?.description === 'string' && m.post.description.trim()
+              ? m.post.description
+              : `Meeting accepted with ${formatPersonName(m.post_owner)}.`,
+          startIso: m.confirmed_slot,
+        });
         items.push({
           key: `out-${m.id}-scheduled`,
           kind: 'scheduled',
           meetingId: m.id,
           at: updatedAt,
           text: `Your meeting for "${postTitle}" is scheduled for ${when}.`,
+          calendarUrl,
         });
       }
     }
@@ -116,6 +154,8 @@ function Dashboard() {
   const [incomingMatchCount, setIncomingMatchCount] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [meetingsLoading, setMeetingsLoading] = useState(true);
+  const [recommendedProjects, setRecommendedProjects] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
   const loadPosts = async () => {
     const a = getAuth();
@@ -204,6 +244,64 @@ function Dashboard() {
     }
   };
 
+  const loadRecommendedProjects = async () => {
+    const a = getAuth();
+    if (!a?.accessToken) {
+      setRecommendedProjects([]);
+      setRecommendationsLoading(false);
+      return;
+    }
+    setRecommendationsLoading(true);
+    try {
+      const [postsRes, profileRes] = await Promise.all([
+        fetch('/api/posts?limit=30', {
+          headers: { Authorization: `Bearer ${a.accessToken}` },
+        }),
+        fetch('/api/users/profile', {
+          headers: { Authorization: `Bearer ${a.accessToken}` },
+        }),
+      ]);
+
+      const postsJson = await postsRes.json().catch(() => ({}));
+      const profileJson = await profileRes.json().catch(() => ({}));
+
+      if (!postsRes.ok) {
+        setRecommendedProjects([]);
+        return;
+      }
+
+      const rawProfile = profileJson?.user || {};
+      const profile = {
+        city:
+          rawProfile.city ||
+          a.user?.city ||
+          '',
+        expertise:
+          rawProfile.expertise ||
+          a.user?.expertise ||
+          '',
+      };
+
+      const uid = a.user?.id;
+      const list = Array.isArray(postsJson.data) ? postsJson.data : [];
+      const ranked = list
+        .filter((project) => project.user_id !== uid)
+        .map((project) => {
+          const match = calculateProjectMatchScore(profile, project);
+          const visual = mapPostToDiscoverCard(project);
+          return { ...project, ...visual, matchScore: match.score };
+        })
+        .sort((left, right) => right.matchScore - left.matchScore)
+        .slice(0, 3);
+
+      setRecommendedProjects(ranked);
+    } catch {
+      setRecommendedProjects([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadPosts();
     loadMeetingsData();
@@ -211,7 +309,9 @@ function Dashboard() {
     const sync = () => {
       loadPosts();
       loadMeetingsData();
+      loadRecommendedProjects();
     };
+    loadRecommendedProjects();
     window.addEventListener(ev, sync);
     return () => window.removeEventListener(ev, sync);
   }, []);
@@ -561,30 +661,130 @@ function Dashboard() {
                       : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
 
                     return (
-                      <Link
+                      <div
                         key={n.key}
-                        to={`/meetings/${n.meetingId}`}
-                        className="flex gap-3 rounded-xl border border-border/40 bg-background/60 p-3.5 transition-all duration-200 hover:border-primary/25 hover:bg-background hover:-translate-y-0.5 hover:shadow-sm group"
+                        className="rounded-xl border border-border/40 bg-background/60 p-3.5 transition-all duration-200 hover:border-primary/25 hover:bg-background hover:-translate-y-0.5 hover:shadow-sm"
                       >
-                        <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center mt-0.5 ${iconColor}`}>
-                          {icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-foreground leading-snug">{n.text}</p>
-                          {n.at && (
-                            <p className="mt-1 text-[10px] text-muted-foreground">
-                              {new Date(n.at).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                        <ArrowUpRight size={11} className="shrink-0 text-muted-foreground/30 group-hover:text-muted-foreground mt-0.5 transition-colors" />
-                      </Link>
+                        <Link to={`/meetings/${n.meetingId}`} className="group flex gap-3">
+                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center mt-0.5 ${iconColor}`}>
+                            {icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-foreground leading-snug">{n.text}</p>
+                            {n.at && (
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {new Date(n.at).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <ArrowUpRight size={11} className="shrink-0 text-muted-foreground/30 group-hover:text-muted-foreground mt-0.5 transition-colors" />
+                        </Link>
+                        {n.calendarUrl && (
+                          <a
+                            href={n.calendarUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex rounded-full border border-border px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
+                          >
+                            Add to Calendar
+                          </a>
+                        )}
+                      </div>
                     );
                   })
                 )}
               </div>
             </motion.aside>
           </div>
+
+          <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur-md p-6"
+          >
+            <div className="mb-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">
+                Smart Matching
+              </p>
+              <h2 className="font-serif text-2xl">AI-Recommended Opportunities</h2>
+            </div>
+
+            {recommendationsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading recommendations…</p>
+            ) : recommendedProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No recommendations yet. Complete your profile expertise and city to improve matching.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                {recommendedProjects.map((project) => {
+                  const badgeClass =
+                    project.matchScore > 80
+                      ? 'bg-emerald-500/90 text-white border-emerald-300/80 shadow-[0_0_0_1px_rgba(6,78,59,0.35)]'
+                      : project.matchScore > 60
+                      ? 'bg-amber-500/90 text-zinc-950 border-amber-200/90 shadow-[0_0_0_1px_rgba(120,53,15,0.35)]'
+                      : 'bg-zinc-900/90 text-white border-zinc-300/70 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]';
+                  return (
+                    <article
+                      key={project.id}
+                      className="group relative rounded-xl border border-border/60 bg-background/70 p-3 transition-colors hover:border-foreground/25 backdrop-blur-md"
+                    >
+                      <div className="relative">
+                        <span className="absolute top-2 left-2 z-10 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          Live
+                        </span>
+                        <img
+                          src={project.imageUrl}
+                          alt={project.title}
+                          className="h-36 w-full rounded-lg object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+
+                      <div className="absolute right-5 top-5">
+                        <span
+                          className={`inline-flex cursor-help items-center rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide backdrop-blur-sm ${badgeClass}`}
+                        >
+                          {project.matchScore}% Match
+                        </span>
+                        <span className="pointer-events-none absolute right-0 top-8 z-20 mt-1 w-64 rounded-lg border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                          Recommended because your expertise and city match this project.
+                        </span>
+                      </div>
+
+                      <p className="mt-2.5 text-[10px] font-bold uppercase tracking-widest text-primary/80">
+                        {project.domain || 'Project'}
+                      </p>
+                      <h3 className="mt-1 pr-24 text-sm font-semibold text-foreground line-clamp-2">
+                        {project.title}
+                      </h3>
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-3">
+                        {project.description}
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                        {project.project_stage && (
+                          <span className="rounded-full bg-muted px-2 py-1">
+                            {STAGE_LABELS[project.project_stage] || project.project_stage}
+                          </span>
+                        )}
+                        <span className="rounded-full bg-muted px-2 py-1">{project.city || 'Remote'}</span>
+                        <span className="rounded-full bg-muted px-2 py-1">{project.role}</span>
+                      </div>
+
+                      <Link
+                        to={`/post/${project.id}`}
+                        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      >
+                        View Details <ArrowUpRight size={12} />
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </motion.section>
         </div>
       </div>
     </div>

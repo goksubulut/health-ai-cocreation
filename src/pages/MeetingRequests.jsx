@@ -67,6 +67,9 @@ function MeetingRequests() {
     return () => window.removeEventListener(ev, load);
   }, [load]);
 
+  const visibleRows =
+    tab === 'incoming' ? rows.filter((meeting) => meeting.status !== 'cancelled') : rows;
+
   return (
     <div className="min-h-[100dvh] pt-28 pb-16 px-6 lg:px-16 bg-background">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -122,13 +125,13 @@ function MeetingRequests() {
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="animate-spin" size={16} /> Loading…
             </p>
-          ) : rows.length === 0 ? (
+          ) : visibleRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No {tab === 'incoming' ? 'incoming' : 'outgoing'} meeting requests yet.
             </p>
           ) : (
             <ul className="space-y-3">
-              {rows.map((m) => (
+              {visibleRows.map((m) => (
                 <li key={m.id}>
                   <Link
                     to={`/meetings/${m.id}`}

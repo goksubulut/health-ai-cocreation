@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Activity, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Activity, ArrowLeft, ChartColumn } from 'lucide-react';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
 
 export default function AdminLayout() {
@@ -61,6 +61,19 @@ export default function AdminLayout() {
           >
             <Users size={18} />
             Users
+          </NavLink>
+          <NavLink
+            to="/admin/stats"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors font-medium text-sm ${
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`
+            }
+          >
+            <ChartColumn size={18} />
+            Stats
           </NavLink>
           <NavLink
             to="/admin/logs"

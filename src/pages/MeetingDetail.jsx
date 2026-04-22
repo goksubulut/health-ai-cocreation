@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
+import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -252,6 +253,13 @@ function MeetingDetail() {
   };
 
   const slots = Array.isArray(m?.time_slots) ? m.time_slots : [];
+  const calendarLink = m?.confirmed_slot
+    ? buildGoogleCalendarDeeplink({
+        title: m.post?.title || `Meeting for Post #${m.post_id}`,
+        details: m.post?.description || m.message || 'Collaboration meeting',
+        startIso: m.confirmed_slot,
+      })
+    : '';
 
   const listingOpen = Boolean(
     m?.post && ['active', 'meeting_scheduled'].includes(m.post.status)
@@ -393,6 +401,16 @@ function MeetingDetail() {
                   <p className="text-lg">
                     {new Date(m.confirmed_slot).toLocaleString()}
                   </p>
+                  {calendarLink && (
+                    <a
+                      href={calendarLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                    >
+                      Add to Google Calendar
+                    </a>
+                  )}
                 </div>
               </div>
             )}
