@@ -237,7 +237,10 @@ function Profile() {
   const displayName = profile
     ? [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() || profile.email
     : '';
-  const initials = (profile?.firstName?.[0] || '') + (profile?.lastName?.[0] || '');
+  const initials = (
+    `${profile?.firstName?.[0] || ''}${profile?.lastName?.[0] || ''}` ||
+    (profile?.email ? profile.email.slice(0, 2) : '')
+  ).toUpperCase();
   const expertiseItems = (form.expertise || '')
     .split(',')
     .map((x) => x.trim())
@@ -399,7 +402,7 @@ function Profile() {
       <div className="profile-hero">
         <div className="profile-cover" style={{ backgroundImage: 'url("/assets/mesh_4.png")' }}></div>
         <div className="profile-hero-inner">
-          <div className="profile-avatar flex-shrink-0">{initials || 'U'}</div>
+          <div className="profile-avatar flex-shrink-0">{initials || 'US'}</div>
           <div className="profile-name">
             <h1>{loadingProfile ? 'Loading...' : (displayName || 'Profile')}</h1>
             <div className="meta">

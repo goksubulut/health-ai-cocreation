@@ -20,6 +20,7 @@ type HeaderProps = {
   isAuthenticated: boolean;
   dashboardPath: string;
   profilePath: string;
+  userInitials?: string;
   onSignOut: () => void;
   theme: string | undefined;
   onToggleTheme: () => void;
@@ -29,6 +30,7 @@ export function Header({
   isAuthenticated,
   dashboardPath,
   profilePath,
+  userInitials,
   onSignOut,
   theme,
   onToggleTheme,
@@ -146,6 +148,9 @@ export function Header({
         <div className="nav-right hidden md:flex">
           {isAuthenticated ? (
             <>
+              <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
               <div
                 className="relative"
                 onMouseEnter={openProfileMenu}
@@ -161,7 +166,7 @@ export function Header({
                   onFocus={openProfileMenu}
                   onClick={() => setProfileMenuOpen((prev) => !prev)}
                 >
-                  U
+                  {userInitials || '??'}
                 </button>
                 {profileMenuOpen ? (
                   <div
@@ -180,10 +185,6 @@ export function Header({
                       <Settings size={14} strokeWidth={1.5} /> Settings
                     </button>
                     <div className="my-1 h-px bg-border/70"></div>
-                    <button type="button" onClick={onToggleTheme} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
-                      {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
-                      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                    </button>
                     <button type="button" onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
                       <LogOut size={14} strokeWidth={1.5} /> Sign out
                     </button>

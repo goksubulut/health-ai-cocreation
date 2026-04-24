@@ -44,6 +44,9 @@ function Layout() {
 
   const isAuthenticated = Boolean(auth);
   const dashboardPath = auth ? getDashboardPathByRole(auth.user.role) : '/auth?mode=login';
+  const userInitials = auth?.user
+    ? `${auth.user.first_name?.[0] || auth.user.firstName?.[0] || ''}${auth.user.last_name?.[0] || auth.user.lastName?.[0] || ''}`.toUpperCase() || auth.user.email?.slice(0, 2).toUpperCase() || 'US'
+    : 'US';
 
   return (
     <div className="min-h-[100dvh] flex flex-col relative">
@@ -52,6 +55,7 @@ function Layout() {
         isAuthenticated={isAuthenticated}
         dashboardPath={dashboardPath}
         profilePath="/profile"
+        userInitials={userInitials}
         onSignOut={() => {
           clearAuth();
           window.location.href = '/auth?mode=login';
