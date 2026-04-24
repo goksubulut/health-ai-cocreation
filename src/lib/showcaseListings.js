@@ -258,6 +258,7 @@ export const boardListings = showcaseListings.map((listing) => ({
   city: listing.city,
   tags: listing.tags,
   distanceKm: listing.distanceKm,
+  matchScore: Math.max(55, 100 - Math.round(listing.distanceKm * 12)),
   summary: listing.summary,
   imageUrl: listing.imageUrl,
   stage: listing.stage,

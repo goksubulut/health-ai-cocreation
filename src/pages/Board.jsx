@@ -209,7 +209,7 @@ function Board() {
         <div className="hero-mesh" style={{ backgroundImage: 'url("/assets/mesh_2.png")' }}></div>
         <div className="hero-inner">
           <div>
-            <span className="eyebrow text-foreground/60">Health AI platform</span>
+            <span className="hero-eyebrow">Health AI platform</span>
             <h1 style={{ marginTop: '16px' }}>Research worth<br/><em>doing together.</em></h1>
             <p>Browse live clinical-AI collaborations from Mayo, Kaiser, Stanford and 60+ partner institutions. Match scores use your profile and past work.</p>
             <div className="hero-ctas">
@@ -221,15 +221,15 @@ function Board() {
               <button type="button" className="btn btn-ghost-on-dark">How matching works →</button>
             </div>
           </div>
-          <div className="text-foreground/80 text-[13px] leading-relaxed">
-            <div className="flex-between py-[14px] border-b border-foreground/10">
-              <span>Live projects</span><span className="font-serif text-[32px] text-foreground tracking-tight">{posts.length}</span>
+          <div className="hero-kpi text-[13px] leading-relaxed">
+            <div className="flex-between py-[14px] border-b border-white/12">
+              <span>Live projects</span><span className="hero-kpi-value">{posts.length}</span>
             </div>
-            <div className="flex-between py-[14px] border-b border-foreground/10">
-              <span>Partner institutions</span><span className="font-serif text-[32px] text-foreground tracking-tight">64</span>
+            <div className="flex-between py-[14px] border-b border-white/12">
+              <span>Partner institutions</span><span className="hero-kpi-value">64</span>
             </div>
             <div className="flex-between py-[14px]">
-              <span>Saved via matching</span><span className="font-serif text-[32px] text-primary tracking-tight">{favoriteListings.length}</span>
+              <span>Matches made this week</span><span className="hero-kpi-value hero-kpi-value-accent">{favoriteListings.length}</span>
             </div>
           </div>
         </div>
@@ -269,8 +269,9 @@ function Board() {
       <div className="grid-listings mb-10">
         {orderedPosts.map(post => {
            const isFav = favoriteIds.includes(String(post.id));
-           const isHigh = post.matchScore > 80;
-           const isMed = post.matchScore > 60;
+           const matchScore = Number.isFinite(post.matchScore) ? post.matchScore : 68;
+           const isHigh = matchScore > 80;
+           const isMed = matchScore > 60;
            return (
              <article key={post.id} className="listing cursor-pointer transition-transform hover:-translate-y-1" onClick={() => navigate(`/post/${post.id}`)}>
                <div className="listing-hero" style={{ backgroundImage: `url('${post.imageUrl}')` }}>
@@ -282,7 +283,7 @@ function Board() {
                    <Heart size={16} fill={isFav ? 'currentColor' : 'none'} strokeWidth={isFav ? 1.5 : 2} className={isFav ? "text-[#E63946]" : "text-black dark:text-white"} />
                  </button>
                  <span className={`absolute top-3 left-3 text-[11px] font-bold px-2 py-0.5 rounded-full z-10 bg-white/70 dark:bg-black/70 backdrop-blur border border-white/30 dark:border-black/30 w-max ${isHigh ? 'text-emerald-700 dark:text-emerald-400' : isMed ? 'text-amber-700 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-400'}`}>
-                   {post.matchScore}% Match
+                   {matchScore}% Match
                  </span>
                </div>
                <div className="listing-body">

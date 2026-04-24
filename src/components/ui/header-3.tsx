@@ -3,7 +3,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
-import { CircleHelp, LogOut, Moon, Sun, User } from 'lucide-react';
+import { Check, CircleHelp, Globe, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import {
@@ -14,6 +14,14 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 type HeaderProps = {
@@ -34,6 +42,7 @@ export function Header({
   onToggleTheme,
 }: HeaderProps) {
   const [open, setOpen] = React.useState(false);
+  const [language, setLanguage] = React.useState<'tr' | 'en'>('tr');
   const scrolled = useScroll(10);
   const location = useLocation();
 
@@ -68,7 +77,7 @@ export function Header({
               <NavigationMenuList>
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="bg-transparent text-[13px] font-medium text-muted-foreground h-auto p-0 px-3 hover:bg-transparent hover:text-foreground">Help</NavigationMenuTrigger>
-                  <NavigationMenuContent className="bg-background p-2 w-[240px]">
+                  <NavigationMenuContent className="bg-background p-2 w-[240px] border border-border/70 rounded-xl shadow-lg">
                     <ul className="grid w-[240px] gap-1 rounded-md bg-popover shadow">
                       <HelpLink href="/help/faq" title="FAQ" description="Questions & answers." />
                       <HelpLink href="/help/troubleshooting" title="Issues" description="Troubleshooting." />
@@ -95,9 +104,38 @@ export function Header({
               <button type="button" onClick={onSignOut} className="opacity-70 hover:opacity-100 flex items-center pr-2">
                 <LogOut size={16} />
               </button>
-              <Link to={profilePath} className="avatar">
-                U
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="avatar">
+                    U
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52 rounded-xl border-border/70 bg-popover/95 backdrop-blur-md">
+                  <DropdownMenuLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Account</DropdownMenuLabel>
+                  <DropdownMenuItem asChild>
+                    <Link to={profilePath} className="flex items-center gap-2">
+                      <User size={14} strokeWidth={1.5} /> Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings size={14} strokeWidth={1.5} className="mr-2" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Language</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setLanguage('tr')}>
+                    <Globe size={14} strokeWidth={1.5} className="mr-2" /> Turkish
+                    {language === 'tr' ? <Check size={14} className="ml-auto" /> : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage('en')}>
+                    <Globe size={14} strokeWidth={1.5} className="mr-2" /> English
+                    {language === 'en' ? <Check size={14} className="ml-auto" /> : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onSignOut}>
+                    <LogOut size={14} strokeWidth={1.5} className="mr-2" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <>
@@ -190,10 +228,10 @@ function HelpLink({ href, title, description }: { href: string; title: string; d
       <NavigationMenuLink asChild>
         <Link
           to={href}
-          className="flex flex-col rounded-md p-3 transition-colors hover:bg-accent focus:bg-accent"
+          className="group flex flex-col rounded-md p-3 transition-colors hover:bg-accent focus:bg-accent"
         >
-          <span className="text-sm font-semibold">{title}</span>
-          <span className="text-xs text-muted-foreground">{description}</span>
+          <span className="text-sm font-semibold text-foreground group-hover:text-accent-foreground">{title}</span>
+          <span className="text-xs text-muted-foreground group-hover:text-accent-foreground/90">{description}</span>
         </Link>
       </NavigationMenuLink>
     </li>

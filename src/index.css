@@ -186,7 +186,7 @@
   .hero {
     position: relative;
     padding: 56px 48px 48px;
-    background: #8e8d8f;
+    background: #0b0b10;
     border-radius: var(--radius-xl);
     overflow: hidden;
   }
@@ -198,21 +198,49 @@
   .hero-mesh {
     position: absolute; inset: 0;
     background-size: cover; background-position: center;
-    opacity: 0.9;
+    opacity: .55;
+    mix-blend-mode: screen;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 55% 90% at 95% 50%, rgba(255,255,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
   }
   .hero-inner { position: relative; display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: end; }
   @media (max-width: 1024px) {
     .hero-inner { grid-template-columns: 1fr; gap: 24px; }
   }
   .hero h1 {
-    color: var(--fg);
+    color: #f5f5f2;
     font-size: clamp(2.5rem, 3.2vw + 1rem, 4rem);
     line-height: 1.02;
     letter-spacing: -0.02em;
     margin: 0;
+    font-weight: 400;
   }
-  .hero h1 em { font-style: italic; color: var(--accent-violet); font-weight: 400; }
-  .hero p { color: color-mix(in srgb, var(--fg) 85%, transparent); font-size: 16px; max-width: 52ch; margin: 18px 0 28px; }
+  .hero h1 em { font-style: italic; color: #cdbfff; font-weight: 400; }
+  .hero p { color: rgba(245,245,242,.78); font-size: 16px; max-width: 52ch; margin: 18px 0 28px; font-weight: 400; }
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .2em;
+    color: rgba(245,245,242,.62);
+  }
+  .hero-kpi {
+    color: rgba(245,245,242,.82);
+  }
+  .hero-kpi-value {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    color: #f5f5f2;
+    letter-spacing: -.01em;
+  }
+  .hero-kpi-value-accent {
+    color: #cdbfff;
+  }
   .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
 
   /* ===== Buttons ===== */
@@ -229,10 +257,10 @@
   .btn-accent  { background: var(--accent-emerald); color: #fff; }
   .btn-violet  { background: var(--accent-violet);  color: var(--bg); }
   .btn-ghost   { background: transparent; color: var(--fg); border-color: var(--border); }
-  .btn-on-dark { background: var(--fg); color: var(--bg); }
-  .btn-on-dark:hover { background: color-mix(in srgb, var(--fg) 85%, transparent); }
-  .btn-ghost-on-dark { background: transparent; color: var(--fg); border-color: color-mix(in srgb, var(--fg) 30%, transparent); }
-  .btn-ghost-on-dark:hover { background: color-mix(in srgb, var(--fg) 10%, transparent); }
+  .btn-on-dark { background: #fff; color: #0f0f17; }
+  .btn-on-dark:hover { background: #f2f2f2; }
+  .btn-ghost-on-dark { background: transparent; color: #fff; border-color: rgba(255,255,255,.25); }
+  .btn-ghost-on-dark:hover { background: rgba(255,255,255,.08); }
 
   /* ===== Sections ===== */
   .section-head {
@@ -249,11 +277,28 @@
     letter-spacing: -0.015em;
     line-height: 1.1;
     margin: 0;
-    color: #ffffff;
+    color: var(--fg);
   }
-  .section-head h2 em { font-style: italic; color: #a78bfa; font-weight: 400; }
-  .section-head .eyebrow-wrap { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.8); }
-  .section-head .eyebrow-wrap .hair { width: 20px; height: 1px; background: rgba(255,255,255,0.5); }
+  .section-head h2 em { font-style: italic; color: var(--accent-violet); font-weight: 400; }
+  .section-head .eyebrow-wrap { display: flex; align-items: center; gap: 10px; color: var(--fg-subtle); }
+  .section-head .eyebrow-wrap .hair { width: 20px; height: 1px; background: color-mix(in srgb, var(--fg-subtle) 60%, transparent); }
+
+  .grain-gradient-animate {
+    background:
+      radial-gradient(42rem 42rem at 15% 20%, color-mix(in srgb, var(--accent-violet) 24%, transparent), transparent 60%),
+      radial-gradient(40rem 40rem at 85% 25%, color-mix(in srgb, var(--accent-emerald) 18%, transparent), transparent 58%),
+      radial-gradient(36rem 36rem at 45% 80%, color-mix(in srgb, var(--accent-violet) 14%, transparent), transparent 62%);
+    mix-blend-mode: soft-light;
+    opacity: 0.65;
+    animation: float-gradient 18s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+  }
+
+  @keyframes float-gradient {
+    0% { transform: translate3d(-2%, 0%, 0) scale(1); opacity: 0.45; }
+    50% { transform: translate3d(1.8%, -1.5%, 0) scale(1.04); opacity: 0.6; }
+    100% { transform: translate3d(3.5%, 2%, 0) scale(1.08); opacity: 0.72; }
+  }
 
   /* ===== Filter bar ===== */
   .filterbar {

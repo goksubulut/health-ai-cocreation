@@ -20,13 +20,14 @@ export default function GrainGradientBackground({ className = "" }) {
 
   return (
     <div className={`fixed inset-0 w-full h-full pointer-events-none ${className}`} style={{ zIndex: -10 }}>
+      <div className="grain-gradient-animate absolute inset-0" />
       <GrainGradient
         colors={colors}
         grain={0.0}
         softness={0.9}
         intensity={0.6}
-        swirl={0.4}
-        speed={0.3}
+        swirl={0.55}
+        speed={0.9}
         style={{ width: "100%", height: "100%" }}
       />
     </div>
