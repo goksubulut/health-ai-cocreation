@@ -8,6 +8,10 @@ import {
   Shield,
   Loader2,
   CalendarClock,
+  Sparkles,
+  Clock3,
+  CheckCircle2,
+  CircleDashed,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 
@@ -22,18 +26,16 @@ const MEETING_STATUS = {
 function MeetingRequests() {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const initialTab =
-    tabParam === 'outgoing' || tabParam === 'sent' ? 'outgoing' : 'incoming';
-
+  const initialTab = tabParam === 'outgoing' || tabParam === 'sent' ? 'outgoing' : 'incoming';
   const [tab, setTab] = useState(initialTab);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
     if (tabParam === 'outgoing' || tabParam === 'sent') setTab('outgoing');
     else if (tabParam === 'incoming' || tabParam === 'received') setTab('incoming');
   }, [tabParam]);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
     const a = getAuth();
@@ -67,51 +69,83 @@ function MeetingRequests() {
     return () => window.removeEventListener(ev, load);
   }, [load]);
 
-  const visibleRows =
-    tab === 'incoming' ? rows.filter((meeting) => meeting.status !== 'cancelled') : rows;
+  const visibleRows = tab === 'incoming' ? rows.filter((meeting) => meeting.status !== 'cancelled') : rows;
+  const pendingCount = visibleRows.filter((meeting) => meeting.status === 'pending').length;
+  const scheduledCount = visibleRows.filter((meeting) => meeting.status === 'scheduled').length;
+  const ndaCount = visibleRows.filter((meeting) => meeting.nda_accepted).length;
 
   return (
-    <div className="min-h-[100dvh] pt-28 pb-16 px-6 lg:px-16 bg-background">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-[100dvh] pt-28 pb-16 px-6 lg:px-16">
+      <div className="mx-auto max-w-6xl space-y-8">
         <motion.header
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
+          className="relative overflow-hidden rounded-[28px] border border-white/15 bg-black/45 p-7 shadow-[0_20px_80px_rgba(15,8,36,0.35)] backdrop-blur-xl lg:p-10"
         >
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Matching
-          </p>
-          <h1 className="font-serif text-4xl lg:text-5xl">Meeting requests</h1>
-          <p className="text-muted-foreground max-w-2xl">
-            Incoming requests on your listings, and outgoing requests you sent. Propose time
-            slots from Discovery when you express interest; here you can open a request to
-            accept or decline and confirm a time once the post owner has accepted.
+          <div className="pointer-events-none absolute -left-14 -top-14 h-48 w-48 rounded-full bg-violet-400/15 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -right-16 h-56 w-56 rounded-full bg-emerald-300/10 blur-3xl" />
+          <p className="hero-eyebrow">Requests workspace</p>
+          <h1 className="mt-2 font-serif text-4xl text-white lg:text-5xl">
+            Meetings and intros,
+            <br />
+            <em className="text-[#cab8ff]">organized in one flow.</em>
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm text-white/80 lg:text-base">
+            Incoming requests on your listings, and outgoing requests you sent. Propose time slots from Discovery when
+            you express interest; here you can open a request to accept or decline and confirm a time once the post
+            owner has accepted.
           </p>
         </motion.header>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setTab('incoming')}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              tab === 'incoming'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            <Inbox size={16} /> Incoming
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('outgoing')}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              tab === 'outgoing'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            <Send size={16} /> Outgoing
-          </button>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border/60 bg-card/75 p-4 backdrop-blur-md">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Pending now</div>
+            <div className="mt-2 flex items-center gap-2 text-3xl font-serif text-foreground">
+              <Clock3 size={20} className="text-amber-500" /> {pendingCount}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-card/75 p-4 backdrop-blur-md">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Scheduled</div>
+            <div className="mt-2 flex items-center gap-2 text-3xl font-serif text-foreground">
+              <CheckCircle2 size={20} className="text-emerald-500" /> {scheduledCount}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-card/75 p-4 backdrop-blur-md">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">NDA accepted</div>
+            <div className="mt-2 flex items-center gap-2 text-3xl font-serif text-foreground">
+              <Shield size={20} className="text-violet-500" /> {ndaCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-md">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTab('incoming')}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                tab === 'incoming'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              <Inbox size={16} /> Incoming
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('outgoing')}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                tab === 'outgoing'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              <Send size={16} /> Outgoing
+            </button>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
+            <Sparkles size={13} /> {visibleRows.length} visible requests
+          </div>
         </div>
 
         {err && (
@@ -120,25 +154,25 @@ function MeetingRequests() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-border/60 bg-card/50 p-6">
+        <div className="rounded-2xl border border-border/60 bg-card/50 p-4 backdrop-blur-md sm:p-6">
           {loading ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="animate-spin" size={16} /> Loading…
             </p>
           ) : visibleRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <div className="rounded-xl border border-border/50 bg-background/40 p-6 text-sm text-muted-foreground">
               No {tab === 'incoming' ? 'incoming' : 'outgoing'} meeting requests yet.
-            </p>
+            </div>
           ) : (
             <ul className="space-y-3">
               {visibleRows.map((m) => (
                 <li key={m.id}>
                   <Link
                     to={`/meetings/${m.id}`}
-                    className="flex items-start justify-between gap-4 rounded-xl border border-border/50 bg-background/70 p-4 transition-colors hover:border-primary/35"
+                    className="group flex items-start justify-between gap-4 rounded-xl border border-border/50 bg-background/55 p-4 transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:bg-background/70"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
                           {MEETING_STATUS[m.status] || m.status}
                         </span>
@@ -148,8 +182,11 @@ function MeetingRequests() {
                           </span>
                         )}
                         {m.nda_accepted && (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                            NDA accepted
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400">NDA accepted</span>
+                        )}
+                        {m.status === 'pending' && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                            <CircleDashed size={12} /> Awaiting response
                           </span>
                         )}
                         {m.post?.status === 'expired' && m.status === 'cancelled' && (
@@ -158,10 +195,8 @@ function MeetingRequests() {
                           </span>
                         )}
                       </div>
-                      <p className="font-medium truncate">
-                        {m.post?.title || `Post #${m.post_id}`}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="truncate font-medium">{m.post?.title || `Post #${m.post_id}`}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {tab === 'incoming' ? (
                           <>
                             From{' '}
@@ -189,7 +224,10 @@ function MeetingRequests() {
                         </p>
                       )}
                     </div>
-                    <ArrowUpRight size={18} className="shrink-0 text-muted-foreground" />
+                    <ArrowUpRight
+                      size={18}
+                      className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
                   </Link>
                 </li>
               ))}

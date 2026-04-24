@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, Sparkles, ShieldCheck, Wand2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
 import { DatePickerField } from '@/components/ui/date-picker-field';
@@ -47,6 +47,12 @@ const STAGE_FROM_API = {
   pilot: 'pilot',
   pre_deployment: 'pre_deployment',
 };
+
+const polishTips = [
+  'Clear title + focused domain increases discoverability.',
+  'Describe concrete outcomes and collaborator responsibilities.',
+  'Use a realistic timeline to improve match confidence.',
+];
 
 function expertiseStringToKey(requiredExpertise) {
   if (!requiredExpertise) return '';
@@ -286,9 +292,32 @@ function PostForm() {
   return (
     <div className="wizard-wrapper">
       <div className="wizard-container">
-        <p className="mb-4 text-center text-sm font-medium text-muted-foreground">
-          {isEdit ? 'Edit post' : 'Create post'}
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mb-6 overflow-hidden rounded-3xl border border-white/15 bg-black/50 p-6 shadow-[0_14px_60px_rgba(18,10,36,0.35)] backdrop-blur-xl sm:p-8"
+        >
+          <div className="pointer-events-none absolute" />
+          <p className="hero-eyebrow">{isEdit ? 'Edit project listing' : 'Create project listing'}</p>
+          <h1 className="mt-3 font-serif text-3xl leading-tight text-white sm:text-4xl">
+            Shape the collaboration brief
+            <br />
+            <em className="text-[#cab8ff]">that attracts the right people</em>
+          </h1>
+          <p className="mt-4 max-w-2xl text-sm text-white/80 sm:text-base">
+            Keep the editorial tone, but be specific: role expectations, stage clarity, and objective outcomes make your
+            project rank better in matching.
+          </p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+            {polishTips.map((tip) => (
+              <div key={tip} className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/85">
+                {tip}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         <div className="mb-8 space-y-4">
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <motion.div
@@ -342,7 +371,10 @@ function PostForm() {
                   >
                     <div className="space-y-2 border-b border-border/40 pb-6">
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
-                        Project Basics
+                        <span className="inline-flex items-center gap-2">
+                          <Sparkles size={20} className="text-violet-500" />
+                          Project Basics
+                        </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
                         Start by outlining your primary goals.
@@ -411,7 +443,10 @@ function PostForm() {
                   >
                     <div className="space-y-2 border-b border-border/40 pb-6">
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
-                        Needs & Collaboration
+                        <span className="inline-flex items-center gap-2">
+                          <Wand2 size={20} className="text-emerald-500" />
+                          Needs & Collaboration
+                        </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
                         What kind of expertise are you looking for?
@@ -516,7 +551,10 @@ function PostForm() {
                   >
                     <div className="space-y-2 border-b border-border/40 pb-6">
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
-                        Final logistics
+                        <span className="inline-flex items-center gap-2">
+                          <ShieldCheck size={20} className="text-sky-500" />
+                          Final logistics
+                        </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
                         Where is this happening and what is the timeline?

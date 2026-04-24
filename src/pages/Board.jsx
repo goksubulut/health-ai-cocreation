@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, SlidersHorizontal, MapPin, Cpu, Tag, Heart } from 'lucide-react';
 import { boardListings } from '@/lib/showcaseListings';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
@@ -69,8 +69,9 @@ function readStoredViewMode() {
 
 function Board() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const auth = getAuth();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
   const [activeFilter, setActiveFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState('');
@@ -142,6 +143,11 @@ function Board() {
     }
   }, [viewMode]);
 
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    setSearchTerm(q);
+  }, [searchParams]);
+
   const cityOptions = useMemo(
     () =>
       [...new Set(posts.map((p) => (typeof p.city === 'string' ? p.city.trim() : '')).filter(Boolean))]
@@ -162,9 +168,9 @@ function Board() {
   }, [posts]);
 
   const filteredPosts = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = searchTerm.trim().toLocaleLowerCase('tr');
     return posts.filter((p) => {
-      const text = `${p.title} ${p.role} ${p.tags.join(' ')}`.toLowerCase();
+      const text = `${p.title} ${p.role} ${p.tags.join(' ')}`.toLocaleLowerCase('tr');
       const searchOk = !q || text.includes(q);
       const filterOk = activeFilter === 'All' ? true 
                      : activeFilter === 'Favorites' ? favoriteIds.includes(String(p.id))
@@ -218,7 +224,7 @@ function Board() {
               ) : (
                 <Link to="/auth?mode=register" className="btn btn-on-dark">Join network</Link>
               )}
-              <button type="button" className="btn btn-ghost-on-dark">How matching works →</button>
+              <Link to="/how-matching-works" className="btn btn-ghost-on-dark">How matching works →</Link>
             </div>
           </div>
           <div className="hero-kpi text-[13px] leading-relaxed">
@@ -236,7 +242,7 @@ function Board() {
       </div>
 
       <div className="section-head w-full">
-        <div>
+        <div className="readability-fade-panel">
           <div className="eyebrow-wrap" style={{ marginBottom: '10px' }}>
             <span className="hair"></span>
             <span className="eyebrow">{auth?.accessToken ? 'For you · based on your profile' : 'Trending collaborations'}</span>
@@ -246,7 +252,24 @@ function Board() {
         <div className="sortby flex items-center gap-4 flex-wrap">
           <div className="relative">
              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-             <input type="text" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search projects..." className="h-9 w-48 rounded-full border bg-background pl-9 pr-3 text-xs" />
+             <input
+               type="text"
+               value={searchTerm}
+               onChange={(e) => {
+                 const nextValue = e.target.value;
+                 setSearchTerm(nextValue);
+                 const nextParams = new URLSearchParams(searchParams);
+                 const trimmed = nextValue.trim();
+                 if (trimmed) {
+                   nextParams.set('q', trimmed);
+                 } else {
+                   nextParams.delete('q');
+                 }
+                 setSearchParams(nextParams, { replace: true });
+               }}
+               placeholder="Search projects..."
+               className="h-9 w-48 rounded-full border bg-background pl-9 pr-3 text-xs"
+             />
           </div>
           <span className="hidden sm:inline text-white/80">Sorted by <strong className="text-white">match score</strong></span>
         </div>

@@ -376,6 +376,9 @@ function Dashboard() {
                 <Plus size={14} /> Post project
               </Link>
             )}
+            <Link to="/meetings" className="btn btn-ghost w-full text-center justify-center mt-2">
+              <Inbox size={14} /> Open requests workspace
+            </Link>
           </div>
         </div>
 
@@ -393,11 +396,9 @@ function Dashboard() {
           <div className="panel">
             <div className="panel-head">
               <h3>Inbound requests</h3>
-              <div className="tabs">
-                <span className="active">All</span>
-                <span>Active</span>
-                <span>Requires action</span>
-              </div>
+              <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">
+                View all requests →
+              </Link>
             </div>
             
             {notifications.slice(0, 6).map((n) => {

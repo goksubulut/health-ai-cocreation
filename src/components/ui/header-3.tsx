@@ -3,7 +3,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
-import { Check, CircleHelp, Globe, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
+import { CircleHelp, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import {
@@ -14,14 +14,6 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 type HeaderProps = {
@@ -42,9 +34,71 @@ export function Header({
   onToggleTheme,
 }: HeaderProps) {
   const [open, setOpen] = React.useState(false);
-  const [language, setLanguage] = React.useState<'tr' | 'en'>('tr');
-  const scrolled = useScroll(10);
+  const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+  const menuOpenTimeoutRef = React.useRef<number | null>(null);
+  const menuCloseTimeoutRef = React.useRef<number | null>(null);
+  const profileMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const profileTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const location = useLocation();
+
+  React.useEffect(() => {
+    return () => {
+      if (menuOpenTimeoutRef.current) {
+        window.clearTimeout(menuOpenTimeoutRef.current);
+      }
+      if (menuCloseTimeoutRef.current) {
+        window.clearTimeout(menuCloseTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    if (!profileMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!profileMenuRef.current?.contains(target) && !profileTriggerRef.current?.contains(target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [profileMenuOpen]);
+
+  const openProfileMenu = React.useCallback(() => {
+    if (menuCloseTimeoutRef.current) {
+      window.clearTimeout(menuCloseTimeoutRef.current);
+      menuCloseTimeoutRef.current = null;
+    }
+    if (menuOpenTimeoutRef.current) {
+      window.clearTimeout(menuOpenTimeoutRef.current);
+    }
+    menuOpenTimeoutRef.current = window.setTimeout(() => {
+      setProfileMenuOpen(true);
+    }, 60);
+  }, []);
+
+  const closeProfileMenu = React.useCallback(() => {
+    if (menuOpenTimeoutRef.current) {
+      window.clearTimeout(menuOpenTimeoutRef.current);
+      menuOpenTimeoutRef.current = null;
+    }
+    if (menuCloseTimeoutRef.current) {
+      window.clearTimeout(menuCloseTimeoutRef.current);
+    }
+    menuCloseTimeoutRef.current = window.setTimeout(() => {
+      setProfileMenuOpen(false);
+    }, 140);
+  }, []);
 
   React.useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
@@ -65,7 +119,6 @@ export function Header({
               <>
                 <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>Discover</Link>
                 <Link to={dashboardPath} className={cn("nav-link", location.pathname.includes('/dashboard') && "active")}>Dashboard</Link>
-                <Link to={profilePath} className={cn("nav-link", location.pathname.includes('/profile') && "active")}>Profile</Link>
               </>
             ) : (
               <>
@@ -93,57 +146,53 @@ export function Header({
         <div className="nav-right hidden md:flex">
           {isAuthenticated ? (
             <>
-              <div className="search">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <span>Search projects…</span>
-                <span className="kbd">⌘K</span>
-              </div>
-              <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2">
-                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              </button>
-              <button type="button" onClick={onSignOut} className="opacity-70 hover:opacity-100 flex items-center pr-2">
-                <LogOut size={16} />
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="avatar">
-                    U
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 rounded-xl border-border/70 bg-popover/95 backdrop-blur-md">
-                  <DropdownMenuLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Account</DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <Link to={profilePath} className="flex items-center gap-2">
+              <div
+                className="relative"
+                onMouseEnter={openProfileMenu}
+                onMouseLeave={closeProfileMenu}
+              >
+                <button
+                  ref={profileTriggerRef}
+                  type="button"
+                  className="avatar"
+                  aria-haspopup="menu"
+                  aria-expanded={profileMenuOpen}
+                  aria-controls="profile-menu-panel"
+                  onFocus={openProfileMenu}
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                >
+                  U
+                </button>
+                {profileMenuOpen ? (
+                  <div
+                    id="profile-menu-panel"
+                    ref={profileMenuRef}
+                    className="profile-menu-panel absolute right-0 top-[calc(100%+10px)] z-50 w-56 rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-lg backdrop-blur-md"
+                    role="menu"
+                    onMouseEnter={openProfileMenu}
+                    onMouseLeave={closeProfileMenu}
+                  >
+                    <div className="px-2 py-1.5 text-xs uppercase tracking-[0.16em] text-muted-foreground">Account</div>
+                    <Link to={profilePath} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent" role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                       <User size={14} strokeWidth={1.5} /> Profile
                     </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings size={14} strokeWidth={1.5} className="mr-2" /> Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Language</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setLanguage('tr')}>
-                    <Globe size={14} strokeWidth={1.5} className="mr-2" /> Turkish
-                    {language === 'tr' ? <Check size={14} className="ml-auto" /> : null}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLanguage('en')}>
-                    <Globe size={14} strokeWidth={1.5} className="mr-2" /> English
-                    {language === 'en' ? <Check size={14} className="ml-auto" /> : null}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onSignOut}>
-                    <LogOut size={14} strokeWidth={1.5} className="mr-2" /> Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <button type="button" className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
+                      <Settings size={14} strokeWidth={1.5} /> Settings
+                    </button>
+                    <div className="my-1 h-px bg-border/70"></div>
+                    <button type="button" onClick={onToggleTheme} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
+                      {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
+                      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                    </button>
+                    <button type="button" onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
+                      <LogOut size={14} strokeWidth={1.5} /> Sign out
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
             <>
-              <div className="search">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <span>Search…</span>
-                <span className="kbd">⌘K</span>
-              </div>
               <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               </button>
@@ -269,23 +318,4 @@ function MobileMenu({ open, children, className, ...props }: MobileMenuProps) {
     </div>,
     document.body,
   );
-}
-
-function useScroll(threshold: number) {
-  const [scrolled, setScrolled] = React.useState(false);
-
-  const onScroll = React.useCallback(() => {
-    setScrolled(window.scrollY > threshold);
-  }, [threshold]);
-
-  React.useEffect(() => {
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [onScroll]);
-
-  React.useEffect(() => {
-    onScroll();
-  }, [onScroll]);
-
-  return scrolled;
 }

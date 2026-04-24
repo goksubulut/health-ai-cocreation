@@ -16,6 +16,7 @@ import MeetingRequests from './pages/MeetingRequests';
 import MeetingDetail from './pages/MeetingDetail';
 import MndaAgreementPage from './pages/MndaAgreementPage';
 import Profile from './pages/Profile';
+import HowMatchingWorks from './pages/HowMatchingWorks';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPosts from './pages/admin/AdminPosts';
@@ -71,6 +72,7 @@ function App() {
               }
             />
             <Route path="board" element={<Board />} />
+            <Route path="how-matching-works" element={<HowMatchingWorks />} />
             <Route path="post/:id" element={<PostDetail />} />
             <Route path="post/:id/meeting" element={<MeetingRequest />} />
             <Route path="legal/mnda" element={<MndaAgreementPage />} />
