@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { CircleHelp, LogOut, Moon, Sun, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
@@ -35,6 +35,7 @@ export function Header({
 }: HeaderProps) {
   const [open, setOpen] = React.useState(false);
   const scrolled = useScroll(10);
+  const location = useLocation();
 
   React.useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
@@ -44,74 +45,74 @@ export function Header({
   }, [open]);
 
   return (
-    <header
-      className={cn('sticky top-0 z-50 w-full border-b border-transparent', {
-        'bg-background/95 supports-[backdrop-filter]:bg-background/60 border-border backdrop-blur-lg': scrolled,
-      })}
-    >
-      <nav className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="font-serif text-2xl font-bold tracking-tight">
-            HEALTH<span className="italic text-primary">AI</span>
+    <header className="sticky top-4 z-50 w-full px-4 sm:px-6 lg:px-8">
+      <nav className="nav mx-auto w-full max-w-[1280px]">
+        <div className="nav-left">
+          <Link to="/" className="wordmark-sm text-foreground">
+            HEALTH<em>AI</em>
           </Link>
-          <NavigationMenu className="hidden md:flex">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger className="bg-transparent">Need Help?</NavigationMenuTrigger>
-                <NavigationMenuContent className="bg-background p-2">
-                  <ul className="grid w-[320px] gap-1 rounded-md border bg-popover p-2 shadow">
-                    <HelpLink href="/help/faq" title="FAQ" description="Common questions and detailed answers." />
-                    <HelpLink
-                      href="/help/troubleshooting"
-                      title="Troubleshooting"
-                      description="Problems, possible causes, and fixes."
-                    />
-                    <HelpLink
-                      href="/help/contact-support"
-                      title="Contact & Support"
-                      description="Support channels and escalation points."
-                    />
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
+          <div className="nav-links hidden md:flex">
+            {isAuthenticated ? (
+              <>
+                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>Discover</Link>
+                <Link to={dashboardPath} className={cn("nav-link", location.pathname.includes('/dashboard') && "active")}>Dashboard</Link>
+                <Link to={profilePath} className={cn("nav-link", location.pathname.includes('/profile') && "active")}>Profile</Link>
+              </>
+            ) : (
+              <>
+                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>Discover</Link>
+              </>
+            )}
+            
+            <NavigationMenu className="md:flex">
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="bg-transparent text-[13px] font-medium text-muted-foreground h-auto p-0 px-3 hover:bg-transparent hover:text-foreground">Help</NavigationMenuTrigger>
+                  <NavigationMenuContent className="bg-background p-2 w-[240px]">
+                    <ul className="grid w-[240px] gap-1 rounded-md bg-popover shadow">
+                      <HelpLink href="/help/faq" title="FAQ" description="Questions & answers." />
+                      <HelpLink href="/help/troubleshooting" title="Issues" description="Troubleshooting." />
+                      <HelpLink href="/help/contact-support" title="Support" description="Contact us." />
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="nav-right hidden md:flex">
           {isAuthenticated ? (
             <>
-              <Button variant="ghost" asChild>
-                <Link to={dashboardPath}>Dashboard</Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link to="/board">Discover</Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link to={profilePath}>
-                  <User size={16} /> Profile
-                </Link>
-              </Button>
-              <Button variant="outline" onClick={onSignOut}>
-                <LogOut size={16} /> Sign Out
-              </Button>
+              <div className="search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <span>Search projects…</span>
+                <span className="kbd">⌘K</span>
+              </div>
+              <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button type="button" onClick={onSignOut} className="opacity-70 hover:opacity-100 flex items-center pr-2">
+                <LogOut size={16} />
+              </button>
+              <Link to={profilePath} className="avatar">
+                U
+              </Link>
             </>
           ) : (
             <>
-              <Button variant="ghost" asChild>
-                <Link to="/board">Discover</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to="/auth?mode=login">Sign In</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/auth?mode=register">Register</Link>
-              </Button>
+              <div className="search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <span>Search…</span>
+                <span className="kbd">⌘K</span>
+              </div>
+              <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <Link to="/auth?mode=login" className="btn btn-ghost px-4 py-1.5 text-[13px] min-h-[32px]">Sign In</Link>
+              <Link to="/auth?mode=register" className="btn btn-primary px-4 py-1.5 text-[13px] min-h-[32px]">Register</Link>
             </>
           )}
-          <Button size="icon" variant="outline" onClick={onToggleTheme} aria-label="Toggle theme">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </Button>
         </div>
 
         <Button

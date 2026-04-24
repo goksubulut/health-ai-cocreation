@@ -24,10 +24,11 @@ const MotionButton: FC<Props> = ({
       type={type}
       onClick={onClick}
       className={cn(
-        'group relative h-auto w-52 cursor-pointer rounded-full border-none p-1 outline-none',
-        isSecondary ? 'bg-muted/70' : 'bg-background/90',
+        'group relative h-auto w-52 cursor-pointer rounded-full border p-1 outline-none',
+        isSecondary ? 'bg-card' : 'bg-card',
         classes,
       )}
+      style={{ borderColor: 'var(--border)' }}
     >
       <span
         className={cn(

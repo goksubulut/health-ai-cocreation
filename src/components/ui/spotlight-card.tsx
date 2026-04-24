@@ -63,7 +63,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
       ['--spread' as string]: spread,
       ['--radius' as string]: '14',
       ['--border' as string]: '2',
-      ['--backdrop' as string]: 'hsl(0 0% 60% / 0.08)',
+      ['--backdrop' as string]: 'rgba(15,15,23,0.08)',
       ['--backup-border' as string]: 'var(--backdrop)',
       ['--size' as string]: '180',
       ['--outer' as string]: '1',

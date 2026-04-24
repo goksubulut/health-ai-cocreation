@@ -237,6 +237,17 @@ function Profile() {
   const displayName = profile
     ? [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() || profile.email
     : '';
+  const initials = (profile?.firstName?.[0] || '') + (profile?.lastName?.[0] || '');
+  const expertiseItems = (form.expertise || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const publications = [
+    'DP-ClinBERT: Differentially private fine-tuning for discharge summarization',
+    'Federated de-identification across three regional EHR deployments',
+    'Rethinking evaluation for clinical NLP: coverage, drift, and harm',
+  ];
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -384,51 +395,54 @@ function Profile() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-background pt-28 pb-16 px-4 sm:px-6 lg:px-16">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <div className="flex flex-col gap-4 border-b border-border/40 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              Account
-            </p>
-            <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">
-              {loadingProfile ? (
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="animate-spin" size={22} /> Loading…
-                </span>
-              ) : (
-                displayName || 'Profile'
-              )}
-            </h1>
-            {profile?.email && (
-              <p className="mt-1 text-sm text-muted-foreground">{profile.email}</p>
-            )}
+    <section className="page" data-screen-label="03 Profile">
+      <div className="profile-hero">
+        <div className="profile-cover" style={{ backgroundImage: 'url("/assets/mesh_4.png")' }}></div>
+        <div className="profile-hero-inner">
+          <div className="profile-avatar flex-shrink-0">{initials || 'U'}</div>
+          <div className="profile-name">
+            <h1>{loadingProfile ? 'Loading...' : (displayName || 'Profile')}</h1>
+            <div className="meta">
+              <span>{profile?.institution || 'Institution'}</span><span className="dot"></span>
+              <span>{profile?.expertise || 'Role'}</span><span className="dot"></span>
+              <span>{profile?.city || 'Location'}</span>
+            </div>
           </div>
-          <div className="flex gap-2">
+          <div className="profile-actions">
             <button
-              type="button"
               onClick={() => setSearchParams({ tab: 'settings' })}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                tab === 'settings'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+              className={`btn flex-1 ${tab === 'settings' ? 'btn-on-dark' : 'btn-ghost-on-dark'}`}
             >
-              Profile
+              Edit profile
             </button>
             <button
-              type="button"
               onClick={() => setSearchParams({ tab: 'posts' })}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                tab === 'posts'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+              className={`btn flex-1 ${tab === 'posts' ? 'btn-on-dark' : 'btn-ghost-on-dark'}`}
             >
               Post history
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="profile-body">
+        <div className="space-y-6">
+            <section className="profile-about">
+              <h2>About</h2>
+              <p>
+                Keep your institution, location, and expertise updated so matching and recommendations can rank relevant collaboration opportunities.
+              </p>
+              <div className="expertise-grid">
+                {expertiseItems.length ? expertiseItems.map((item) => (
+                  <div key={item} className="expertise">
+                    <div className="name">{item}</div>
+                    <div className="years">Expertise area</div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">No expertise set yet.</p>
+                )}
+              </div>
+            </section>
 
         {error && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -762,6 +776,31 @@ function Profile() {
             )}
           </section>
         )}
+          </div>
+
+        <div className="profile-side">
+          <div className="side-card">
+            <h3>At a glance</h3>
+            <div>
+              <div className="stat-row"><span className="k">Email Address</span><span className="v">{profile?.email || '—'}</span></div>
+              <div className="stat-row"><span className="k">Active posts</span><span className="v">{posts.filter((p) => p.status === 'active').length}</span></div>
+              <div className="stat-row"><span className="k">Total projects</span><span className="v">{posts.length}</span></div>
+              <div className="stat-row"><span className="k">Member since</span><span className="v">{profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '—'}</span></div>
+            </div>
+          </div>
+
+          <div className="side-card">
+            <h3>Recent publications</h3>
+            <div>
+              {publications.map((item, idx) => (
+                <div key={item} className="pub">
+                  <div className="pub-title">{item}</div>
+                  <div className="pub-venue">Journal entry · {2025 - idx}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -823,7 +862,7 @@ function Profile() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </section>
   );
 }
 

@@ -1,0 +1,63 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap");
+
+:root {
+  --font-serif: "Instrument Serif", serif;
+  --font-sans: "Outfit", sans-serif;
+
+  --bg: #fafaf7;
+  --bg-elev-1: #ffffff;
+  --bg-elev-2: #f4f4ef;
+  --bg-inset: #f0f0eb;
+  --bg-inverse: #0b0b10;
+
+  --fg: #0f0f17;
+  --fg-muted: #4a4a55;
+  --fg-subtle: #6b6b76;
+
+  --border: rgba(15, 15, 23, 0.1);
+  --border-strong: rgba(15, 15, 23, 0.18);
+
+  --accent-emerald: #0ea371;
+  --accent-violet: #7c5cfc;
+  --accent-violet-fg: #ffffff;
+
+  --status-warning: #c7860b;
+  --status-warning-tint: #fbefd3;
+  --status-danger: #d0342c;
+  --status-info: #2563eb;
+  --status-info-tint: #e6edfe;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-xs: 0 1px 2px rgba(15, 15, 25, 0.04);
+}
+
+.dark,
+[data-theme="dark"] {
+  --bg: #0b0d12;
+  --bg-elev-1: #12151c;
+  --bg-elev-2: #171b24;
+  --bg-inset: #0e1117;
+  --bg-inverse: #f5f5f2;
+
+  --fg: #f5f5f2;
+  --fg-muted: #b8bcc7;
+  --fg-subtle: #8a8f9c;
+
+  --border: rgba(245, 245, 242, 0.1);
+  --border-strong: rgba(245, 245, 242, 0.18);
+
+  --accent-emerald: #2bd9a0;
+  --accent-violet: #a78bff;
+  --accent-violet-fg: #10081f;
+
+  --status-warning: #f5b949;
+  --status-warning-tint: rgba(245, 185, 73, 0.12);
+  --status-danger: #ff6b6b;
+  --status-info: #7aa2ff;
+  --status-info-tint: rgba(122, 162, 255, 0.12);
+}
+

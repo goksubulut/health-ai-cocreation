@@ -5,6 +5,7 @@ import { Outlet } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { FeedbackWidget } from '@/components/ui/feedback-widget';
 import { Header } from '@/components/ui/header-3';
+import GrainGradientBackground from '@/components/ui/grain-gradient-background';
 import {
   clearAuth,
   getAuth,
@@ -46,6 +47,7 @@ function Layout() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col relative">
+      <GrainGradientBackground />
       <Header
         isAuthenticated={isAuthenticated}
         dashboardPath={dashboardPath}

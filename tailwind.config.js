@@ -8,44 +8,58 @@ export default {
   theme: {
     extend: {
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "var(--border)",
+        input: "var(--border-strong)",
+        ring: "var(--accent-violet)",
+        background: "var(--bg)",
+        foreground: "var(--fg)",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "var(--fg)",
+          foreground: "var(--bg-elev-1)",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "var(--bg-inset)",
+          foreground: "var(--fg)",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "var(--status-danger)",
+          foreground: "#fff",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "var(--bg-elev-2)",
+          foreground: "var(--fg-subtle)",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "var(--accent-violet)",
+          foreground: "var(--accent-violet-fg)",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "var(--bg-elev-1)",
+          foreground: "var(--fg)",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "var(--bg-elev-1)",
+          foreground: "var(--fg)",
+        },
+        brand: {
+          emerald: "var(--accent-emerald)",
+          violet: "var(--accent-violet)",
+          amber: "var(--status-warning)",
+          neutral: "var(--fg)",
         },
       },
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+        serif: ['Instrument Serif', 'serif'],
+      },
       borderRadius: {
-        lg: `var(--radius)`,
-        md: `calc(var(--radius) - 2px)`,
-        sm: `calc(var(--radius) - 4px)`,
+        lg: `var(--radius-lg)`,
+        md: `var(--radius-md)`,
+        sm: `var(--radius-sm)`,
+        xl: `var(--radius-xl)`,
+      },
+      spacing: {
+        18: "4.5rem",
       },
       keyframes: {
         "accordion-down": {

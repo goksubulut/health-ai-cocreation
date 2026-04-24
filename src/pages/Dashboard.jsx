@@ -31,6 +31,12 @@ const STAGE_LABELS = {
   pre_deployment: 'Pre-deployment',
 };
 
+const STATUS_STYLES = {
+  pending: { bg: 'var(--status-warning-tint)', text: 'var(--status-warning)' },
+  nda: { bg: 'var(--accent-violet-tint)', text: 'var(--accent-violet)' },
+  scheduled: { bg: 'var(--status-info-tint)', text: 'var(--status-info)' },
+};
+
 function mapPostToDiscoverCard(post) {
   const rawId = post?.id;
   const idNum = typeof rawId === 'number' ? rawId : parseInt(String(rawId), 10);
@@ -337,457 +343,135 @@ function Dashboard() {
       note: 'Awaiting response',
     },
     {
-      title: 'New Matches',
+      title: 'Inbound Requests',
       value: meetingsLoading ? '…' : incomingMatchCount === null ? '—' : String(incomingMatchCount),
       icon: Users,
-      accent: 'violet',
-      note: 'Interest on your posts',
+      accent: 'emerald',
+      note: 'Active pipeline',
+    },
+    {
+      title: 'Recommendations',
+      value: recommendationsLoading ? '…' : String(recommendedProjects.length),
+      icon: Sparkles,
+      accent: 'emerald',
+      note: 'Ranked by profile fit',
     },
   ];
 
   return (
-    <div className="min-h-[100dvh] pt-28 pb-16 bg-background relative overflow-hidden">
-      {/* Subtle dot-grid background */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.045]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-          backgroundSize: '30px 30px',
-        }}
-      />
+    <section className="page" data-screen-label="02 Dashboard">
+      <div className="dash">
+        <div className="sidebar">
+          <h4>Inbox</h4>
+          <ul>
+            <li className="active">All requests <span className="count">{meetingPending ?? 0}</span></li>
+            <li>Awaiting response <span className="count">{meetingPending ?? 0}</span></li>
+            <li>NDA / accepted <span className="count">{notifications.filter((n) => n.kind === 'accepted').length}</span></li>
+            <li>Scheduled <span className="count">{notifications.filter((n) => n.kind === 'scheduled').length}</span></li>
+          </ul>
+          <h4>Quick actions</h4>
+          <div className="mt-4">
+            {canCreatePost && (
+              <Link to="/post/new" className="btn btn-primary w-full text-center justify-center">
+                <Plus size={14} /> Post project
+              </Link>
+            )}
+          </div>
+        </div>
 
-      <div className="px-6 lg:px-16 relative">
-        <div className="max-w-[1400px] mx-auto space-y-5">
-
-          {/* ── Hero header ── */}
-          <motion.header
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative rounded-3xl overflow-hidden bg-zinc-950 p-8 lg:p-10 shadow-2xl"
-          >
-            {/* Background radial glow */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  'radial-gradient(ellipse 55% 90% at 95% 50%, rgba(255,255,255,0.08) 0%, transparent 70%)',
-              }}
-            />
-            {/* Large decorative icon watermark */}
-            <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-[0.05] pointer-events-none">
-              {isHealthcare ? <Stethoscope size={210} strokeWidth={0.8} /> : <Cpu size={210} strokeWidth={0.8} />}
-            </div>
-
-            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div>
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] mb-5 text-white/60">
-                  {isHealthcare ? <Stethoscope size={11} /> : <Cpu size={11} />}
-                  {isHealthcare ? 'Healthcare' : 'Engineer'} · Workspace
-                </div>
-                <p className="font-serif text-4xl lg:text-[3.5rem] leading-none text-white/50 mb-1">
-                  Welcome back,
-                </p>
-                <h1 className="font-serif text-4xl lg:text-[3.5rem] leading-none text-white">
-                  {displayName}
-                </h1>
-              </div>
-
-              {canCreatePost && (
-                <CreatePostCTA to="/post/new" />
-              )}
-            </div>
-          </motion.header>
-
-          {/* ── Stats ── */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="main">
+          <div className="metrics">
             {stats.map((item, idx) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.07 * idx }}
-                className={[
-                  'group relative rounded-2xl border bg-card p-6 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg',
-                  item.accent === 'emerald' && 'border-emerald-500/20 hover:border-emerald-400/40',
-                  item.accent === 'amber'   && 'border-amber-500/20 hover:border-amber-400/40',
-                  item.accent === 'violet'  && 'border-violet-500/20 hover:border-violet-400/40',
-                ].filter(Boolean).join(' ')}
-              >
-                {/* Corner glow */}
-                <div className={[
-                  'absolute -top-8 -right-8 w-28 h-28 rounded-full blur-2xl opacity-20 pointer-events-none',
-                  item.accent === 'emerald' && 'bg-emerald-400',
-                  item.accent === 'amber'   && 'bg-amber-400',
-                  item.accent === 'violet'  && 'bg-violet-400',
-                ].filter(Boolean).join(' ')} />
-
-                <div className="flex items-start justify-between mb-5">
-                  <div className={[
-                    'p-2.5 rounded-xl',
-                    item.accent === 'emerald' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                    item.accent === 'amber'   && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                    item.accent === 'violet'  && 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-                  ].filter(Boolean).join(' ')}>
-                    <item.icon size={18} />
-                  </div>
-                  <ArrowUpRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-                </div>
-                <p className="text-4xl font-bold tracking-tight mb-1">{item.value}</p>
-                <p className="text-sm font-semibold text-foreground leading-tight mb-0.5">{item.title}</p>
-                <p className="text-xs text-muted-foreground">{item.note}</p>
-              </motion.div>
+              <div key={item.title} className="metric">
+                <span className="label text-muted-foreground">{item.title}</span>
+                <span className="num text-foreground">{item.value}</span>
+                <span className="delta">{item.note}</span>
+              </div>
             ))}
-          </section>
-
-          {/* ── Main 2-col grid ── */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-            <div className="xl:col-span-2 space-y-5">
-
-              {/* Posts section */}
-              <motion.section
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur-md overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-6 py-5 border-b border-border/40">
-                  <div>
-                    <h2 className="font-serif text-2xl">
-                      {isHealthcare ? 'Your Active Posts' : 'Your Active Collaborations'}
-                    </h2>
-                    {!loading && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {activePosts.length} listing{activePosts.length !== 1 ? 's' : ''} currently live
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    to="/profile?tab=posts"
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
-                  >
-                    View history <ArrowUpRight size={12} />
-                  </Link>
-                </div>
-
-                <div className="p-5">
-                  {fetchErr && (
-                    <p className="mb-4 text-sm text-destructive">{fetchErr}</p>
-                  )}
-
-                  {loading ? (
-                    <p className="text-sm text-muted-foreground py-4">Loading your posts…</p>
-                  ) : activePosts.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border/60 bg-background/50 py-12 text-center">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                        <FileText size={17} className="text-muted-foreground" />
-                      </div>
-                      <p className="text-sm font-medium text-foreground mb-1">No active posts yet</p>
-                      <p className="text-xs text-muted-foreground mb-5">
-                        Create a listing to start finding collaborators.
-                      </p>
-                      {canCreatePost && (
-                        <Link to="/post/new" className="btn-primary inline-flex text-sm py-2.5 px-5">
-                          <Plus size={14} /> Create post
-                        </Link>
-                      )}
-                    </div>
-                  ) : (
-                    <ul className="space-y-2.5">
-                      {activePosts.map((p) => (
-                        <li
-                          key={p.id}
-                          className="group relative rounded-2xl border border-border/50 bg-background/60 hover:bg-background hover:border-primary/25 transition-all duration-200 overflow-hidden"
-                        >
-                          {/* Left accent stripe */}
-                          <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-emerald-500 rounded-full" />
-
-                          <div className="pl-5 pr-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <Link to={`/post/${p.id}`} className="min-w-0 flex-1 group/link">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                                  Active
-                                </span>
-                                {p.domain && (
-                                  <>
-                                    <span className="text-muted-foreground/40 text-[10px]">·</span>
-                                    <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
-                                      {p.domain}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                              <h3 className="text-[15px] font-semibold text-foreground group-hover/link:text-primary transition-colors truncate">
-                                {p.title}
-                              </h3>
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{p.description}</p>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {p.project_stage && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2.5 py-1">
-                                    <CheckCircle2 size={9} />
-                                    {STAGE_LABELS[p.project_stage] || p.project_stage}
-                                  </span>
-                                )}
-                                {p.expiry_date && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                                    <Clock size={9} />
-                                    Expires {p.expiry_date}
-                                  </span>
-                                )}
-                              </div>
-                            </Link>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Link
-                                to={`/post/${p.id}/edit`}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-                              >
-                                <Pencil size={12} /> Edit
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() => handleDeletePost(p.id)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
-                              >
-                                <Trash2 size={12} /> Delete
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </motion.section>
-
-              {/* Meetings CTA */}
-              <motion.section
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12 }}
-                className="relative rounded-3xl overflow-hidden bg-zinc-950 p-7 lg:p-8 shadow-xl"
-              >
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background:
-                      'radial-gradient(ellipse 50% 100% at 100% 50%, rgba(255,255,255,0.05), transparent)',
-                  }}
-                />
-                <div className="absolute right-7 top-1/2 -translate-y-1/2 opacity-[0.04] pointer-events-none">
-                  <CalendarCheck size={150} strokeWidth={0.8} className="text-white" />
-                </div>
-
-                <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/35 mb-2">
-                      Collaboration Hub
-                    </p>
-                    <h2 className="font-serif text-2xl text-white mb-1.5">Meeting Requests</h2>
-                    <p className="text-sm text-white/50 max-w-sm leading-relaxed">
-                      Review incoming interest, handle NDA agreements, and negotiate time slots with partners.
-                    </p>
-                  </div>
-                  <CreatePostCTA to="/meetings" label="Open requests" variant="arrow" />
-                </div>
-              </motion.section>
-            </div>
-
-            {/* ── Notifications sidebar ── */}
-            <motion.aside
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur-md overflow-hidden flex flex-col"
-            >
-              <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  <h2 className="font-serif text-xl">Notifications</h2>
-                </div>
-                {notifications.length > 0 && (
-                  <span className="text-xs font-bold text-muted-foreground bg-muted rounded-full px-2.5 py-1 tabular-nums">
-                    {notifications.length}
-                  </span>
-                )}
-              </div>
-
-              <div className="p-4 space-y-2 flex-1 overflow-y-auto">
-                {meetingsLoading ? (
-                  <p className="text-sm text-muted-foreground px-2 py-6 text-center">
-                    Loading notifications…
-                  </p>
-                ) : notifications.length === 0 ? (
-                  <div className="rounded-2xl bg-background/50 py-10 text-center">
-                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                      <Bell size={15} className="text-muted-foreground" />
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed px-4">
-                      No notifications yet. Incoming requests and responses will appear here.
-                    </p>
-                  </div>
-                ) : (
-                  notifications.map((n) => {
-                    const isIncoming = n.kind === 'incoming';
-                    const isDeclined = n.kind === 'declined';
-                    const isScheduled = n.kind === 'scheduled';
-
-                    const dotColor = isDeclined
-                      ? 'bg-red-500'
-                      : isScheduled
-                      ? 'bg-emerald-500'
-                      : isIncoming
-                      ? 'bg-blue-500'
-                      : 'bg-emerald-500';
-
-                    const icon = isIncoming ? (
-                      <Inbox size={13} />
-                    ) : isDeclined ? (
-                      <UserMinus size={13} />
-                    ) : isScheduled ? (
-                      <CalendarCheck size={13} />
-                    ) : (
-                      <CheckCircle2 size={13} />
-                    );
-
-                    const iconColor = isDeclined
-                      ? 'text-red-500 bg-red-500/10'
-                      : isScheduled
-                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                      : isIncoming
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
-                      : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
-
-                    return (
-                      <div
-                        key={n.key}
-                        className="rounded-xl border border-border/40 bg-background/60 p-3.5 transition-all duration-200 hover:border-primary/25 hover:bg-background hover:-translate-y-0.5 hover:shadow-sm"
-                      >
-                        <Link to={`/meetings/${n.meetingId}`} className="group flex gap-3">
-                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center mt-0.5 ${iconColor}`}>
-                            {icon}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-foreground leading-snug">{n.text}</p>
-                            {n.at && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                {new Date(n.at).toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                          <ArrowUpRight size={11} className="shrink-0 text-muted-foreground/30 group-hover:text-muted-foreground mt-0.5 transition-colors" />
-                        </Link>
-                        {n.calendarUrl && (
-                          <a
-                            href={n.calendarUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-flex rounded-full border border-border px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
-                          >
-                            Add to Calendar
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </motion.aside>
           </div>
 
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-            className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur-md p-6"
-          >
-            <div className="mb-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">
-                Smart Matching
-              </p>
-              <h2 className="font-serif text-2xl">AI-Recommended Opportunities</h2>
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Inbound requests</h3>
+              <div className="tabs">
+                <span className="active">All</span>
+                <span>Active</span>
+                <span>Requires action</span>
+              </div>
             </div>
-
-            {recommendationsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading recommendations…</p>
-            ) : recommendedProjects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No recommendations yet. Complete your profile expertise and city to improve matching.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {recommendedProjects.map((project) => {
-                  const badgeClass =
-                    project.matchScore > 80
-                      ? 'bg-emerald-500/90 text-white border-emerald-300/80 shadow-[0_0_0_1px_rgba(6,78,59,0.35)]'
-                      : project.matchScore > 60
-                      ? 'bg-amber-500/90 text-zinc-950 border-amber-200/90 shadow-[0_0_0_1px_rgba(120,53,15,0.35)]'
-                      : 'bg-zinc-900/90 text-white border-zinc-300/70 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]';
-                  return (
-                    <article
-                      key={project.id}
-                      className="group relative rounded-xl border border-border/60 bg-background/70 p-3 transition-colors hover:border-foreground/25 backdrop-blur-md"
-                    >
-                      <div className="relative">
-                        <span className="absolute top-2 left-2 z-10 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                          Live
-                        </span>
-                        <img
-                          src={project.imageUrl}
-                          alt={project.title}
-                          className="h-36 w-full rounded-lg object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-
-                      <div className="absolute right-5 top-5">
-                        <span
-                          className={`inline-flex cursor-help items-center rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide backdrop-blur-sm ${badgeClass}`}
-                        >
-                          {project.matchScore}% Match
-                        </span>
-                        <span className="pointer-events-none absolute right-0 top-8 z-20 mt-1 w-64 rounded-lg border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                          Recommended because your expertise and city match this project.
-                        </span>
-                      </div>
-
-                      <p className="mt-2.5 text-[10px] font-bold uppercase tracking-widest text-primary/80">
-                        {project.domain || 'Project'}
-                      </p>
-                      <h3 className="mt-1 pr-24 text-sm font-semibold text-foreground line-clamp-2">
-                        {project.title}
-                      </h3>
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-3">
-                        {project.description}
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                        {project.project_stage && (
-                          <span className="rounded-full bg-muted px-2 py-1">
-                            {STAGE_LABELS[project.project_stage] || project.project_stage}
-                          </span>
-                        )}
-                        <span className="rounded-full bg-muted px-2 py-1">{project.city || 'Remote'}</span>
-                        <span className="rounded-full bg-muted px-2 py-1">{project.role}</span>
-                      </div>
-
-                      <Link
-                        to={`/post/${project.id}`}
-                        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                      >
-                        View Details <ArrowUpRight size={12} />
-                      </Link>
-                    </article>
-                  );
-                })}
+            
+            {notifications.slice(0, 6).map((n) => {
+              const uStatus = n.kind === 'scheduled' ? 'scheduled' : n.kind === 'accepted' ? 'nda' : 'pending';
+              const isNda = uStatus === 'nda';
+              const isPending = uStatus === 'pending';
+              
+              return (
+                <div key={n.key} className="req-row">
+                  <div className="req-avatar" style={{ background: isNda ? 'var(--accent-violet)' : isPending ? 'var(--status-warning)' : 'var(--accent-emerald)' }}>
+                    <Bell size={16} />
+                  </div>
+                  <div>
+                    <div className="req-name">{n.text}</div>
+                    <div className="req-sub">
+                      <span className={`status ${isPending ? 's-pending' : isNda ? 's-nda' : 's-scheduled'} mr-2`}>
+                        <span className="pip"></span>
+                        {uStatus}
+                      </span>
+                      {n.at ? new Date(n.at).toLocaleString() : ''}
+                    </div>
+                  </div>
+                  <div className="req-actions">
+                    <Link to={`/meetings/${n.meetingId}`} className="btn-sm">View details</Link>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {!notifications.length && (
+              <div className="p-6 text-center text-muted-foreground text-sm">
+                No inbound requests yet.
               </div>
             )}
-          </motion.section>
+          </div>
+
+          <div className="panel schedule">
+            <div className="flex-between mb-6">
+              <h3 className="font-serif text-[22px] m-0 tracking-[-.01em]">This week</h3>
+              <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">View calendar →</Link>
+            </div>
+            
+            {notifications.filter((n) => n.kind === 'scheduled').slice(0, 3).map((n) => (
+              <div key={`${n.key}-wk`} className="sched-day">
+                 <div className="sched-date">
+                   {new Date(n.at).getDate()}
+                   <small>{new Date(n.at).toLocaleString('default', { month: 'short' })}</small>
+                 </div>
+                 <div className="sched-events">
+                   <div className="sched-event violet">
+                      <div className="sched-time">{new Date(n.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div>
+                        <div className="sched-title">Introductory Call</div>
+                        <div className="sched-sub">{n.text}</div>
+                      </div>
+                      {n.calendarUrl && (
+                        <a href={n.calendarUrl} target="_blank" rel="noreferrer" className="btn-sm primary" style={{ textDecoration: 'none' }}>
+                          Add to Google Calendar
+                        </a>
+                      )}
+                   </div>
+                 </div>
+              </div>
+            ))}
+            
+            {!notifications.some((n) => n.kind === 'scheduled') && (
+              <div className="text-center text-muted-foreground text-sm py-4">
+                No scheduled intros this week.
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
