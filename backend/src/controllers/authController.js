@@ -20,6 +20,8 @@ const generateRefreshToken = (user) =>
     { expiresIn: env.jwt.refreshExpiry }
   );
 
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
 /**
  * POST /api/auth/register
  */
@@ -201,10 +203,10 @@ const forgotPassword = async (req, res) => {
 
     if (user) {
       const resetToken = crypto.randomBytes(32).toString('hex');
-      const verifyExpiry = new Date(Date.now() + 60 * 60 * 1000);
+      const resetExpiry = new Date(Date.now() + ONE_HOUR_MS);
       await user.update({
-        verifyToken: resetToken,
-        verifyExpiry,
+        resetToken,
+        resetExpiry,
       });
       await sendPasswordResetEmail(user, resetToken);
     }
@@ -225,17 +227,17 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const user = await User.scope('withPassword').findOne({ where: { verifyToken: token } });
+    const user = await User.scope('withPassword').findOne({ where: { resetToken: token } });
 
-    if (!user || !user.verifyExpiry || new Date() > new Date(user.verifyExpiry)) {
+    if (!user || !user.resetExpiry || new Date() > new Date(user.resetExpiry)) {
       return res.status(400).json({ message: 'Invalid or expired reset link.' });
     }
 
     const passwordHash = await bcrypt.hash(password, env.bcryptRounds);
     await user.update({
       passwordHash,
-      verifyToken: null,
-      verifyExpiry: null,
+      resetToken: null,
+      resetExpiry: null,
     });
 
     await logActivity({

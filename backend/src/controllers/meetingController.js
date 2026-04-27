@@ -102,6 +102,11 @@ const otherPartyId = (meeting, userId) =>
 const postAllowsCollaboration = (post) =>
   Boolean(post && ['active', 'meeting_scheduled'].includes(post.status));
 
+const parsePositiveInt = (value) => {
+  const parsed = parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
 // ── POST /api/meetings ─────────────────────────────────────────
 const createMeetingRequest = async (req, res) => {
   try {
@@ -476,8 +481,11 @@ const proposeSlots = async (req, res) => {
 const updateSlot = async (req, res) => {
   try {
     await expireStalePosts();
-    const meetingId = parseInt(req.params.id, 10);
-    const slotId = parseInt(req.params.slotId, 10);
+    const meetingId = parsePositiveInt(req.params.id);
+    const slotId = parsePositiveInt(req.params.slotId);
+    if (!meetingId || !slotId) {
+      return res.status(400).json({ message: 'Invalid meeting or slot id.' });
+    }
 
     const meeting = await MeetingRequest.findByPk(meetingId, {
       include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
@@ -541,8 +549,11 @@ const updateSlot = async (req, res) => {
 const deleteSlot = async (req, res) => {
   try {
     await expireStalePosts();
-    const meetingId = parseInt(req.params.id, 10);
-    const slotId = parseInt(req.params.slotId, 10);
+    const meetingId = parsePositiveInt(req.params.id);
+    const slotId = parsePositiveInt(req.params.slotId);
+    if (!meetingId || !slotId) {
+      return res.status(400).json({ message: 'Invalid meeting or slot id.' });
+    }
 
     const meeting = await MeetingRequest.findByPk(meetingId, {
       include: [{ model: Post, as: 'post', attributes: POST_ATTRS_DETAIL }],
@@ -605,8 +616,11 @@ const deleteSlot = async (req, res) => {
 const confirmSlot = async (req, res) => {
   try {
     await expireStalePosts();
-    const meetingId = parseInt(req.params.id, 10);
-    const slotId = parseInt(req.params.slotId, 10);
+    const meetingId = parsePositiveInt(req.params.id);
+    const slotId = parsePositiveInt(req.params.slotId);
+    if (!meetingId || !slotId) {
+      return res.status(400).json({ message: 'Invalid meeting or slot id.' });
+    }
 
     const slot = await TimeSlot.findOne({
       where: { id: slotId, meetingRequestId: meetingId },
@@ -723,7 +737,16 @@ const cancelMeetingRequest = async (req, res) => {
     await meeting.update({ status: 'cancelled' });
 
     if (meeting.post && meeting.post.status === 'meeting_scheduled') {
-      await Post.update({ status: 'active' }, { where: { id: meeting.postId } });
+      const activeMeetingsCount = await MeetingRequest.count({
+        where: {
+          postId: meeting.postId,
+          status: { [Op.in]: ['accepted', 'scheduled'] },
+          id: { [Op.ne]: meeting.id },
+        },
+      });
+      if (activeMeetingsCount === 0) {
+        await Post.update({ status: 'active' }, { where: { id: meeting.postId } });
+      }
     }
 
     if (recipient) {
