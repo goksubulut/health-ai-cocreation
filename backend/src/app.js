@@ -11,7 +11,9 @@ const authRoutes    = require('./routes/auth');
 const postRoutes    = require('./routes/posts');
 const meetingRoutes = require('./routes/meetings');
 const userRoutes    = require('./routes/users');
-const adminRoutes   = require('./routes/admin');
+const adminRoutes        = require('./routes/admin');
+const bookmarkRoutes     = require('./routes/bookmarks');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -45,7 +47,9 @@ app.use('/api/auth',     authRoutes);
 app.use('/api/posts',    postRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/users',    userRoutes);
-app.use('/api/admin',    adminRoutes);
+app.use('/api/admin',         adminRoutes);
+app.use('/api/bookmarks',     bookmarkRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ── Sağlık kontrolü ───────────────────────────────────────────
 app.get('/health', (req, res) => {

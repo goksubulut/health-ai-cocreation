@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, X, SlidersHorizontal, MapPin, Cpu, Tag, Heart } from 'lucide-react';
+import { Search, X, SlidersHorizontal, MapPin, Cpu, Tag, Heart, Bookmark } from 'lucide-react';
 import { boardListings } from '@/lib/showcaseListings';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
+import { BoardGridSkeleton } from '@/components/ui/skeleton';
+import { NoResults, NoPosts } from '@/components/ui/empty-state';
+import MatchScoreRing from '@/components/ui/match-score-ring';
+import { calculateProjectMatchScore } from '@/lib/matchScore';
+import { useToast } from '@/components/ui/toast';
+import { useLocale } from '@/contexts/locale-context';
 
 const BOARD_FAVORITES_KEY = 'health-ai-cocreation:board-favorites';
 const BOARD_VIEW_MODE_KEY = 'health-ai-cocreation:board-view-mode';
@@ -53,6 +59,7 @@ function mapApiPostToBoardListing(p) {
     matchScore,
     imageUrl: `/assets/mesh_${meshIdx}.png`,
     isMock: false,
+    description: desc,
   };
 }
 
@@ -71,7 +78,10 @@ function Board() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const auth = getAuth();
+  const { toast } = useToast();
+  const { locale } = useLocale();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+  const { t } = useLocale();
   const [activeFilter, setActiveFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState('');
@@ -80,6 +90,19 @@ function Board() {
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveErr, setLiveErr] = useState('');
   const [favoriteIds, setFavoriteIds] = useState(readStoredFavorites);
+  const [bookmarkIds, setBookmarkIds] = useState([]);
+
+  const loadBookmarks = async () => {
+    const token = getAuth()?.accessToken;
+    if (!token) { setBookmarkIds([]); return; }
+    try {
+      const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.data)) {
+        setBookmarkIds(json.data.map((b) => String(b.postId ?? b.post_id ?? b.id)));
+      }
+    } catch { /* silent */ }
+  };
 
   const loadLivePosts = async () => {
     const token = getAuth()?.accessToken;
@@ -117,9 +140,11 @@ function Board() {
 
   useEffect(() => {
     loadLivePosts();
+    loadBookmarks();
     const ev = getAuthChangedEventName();
-    window.addEventListener(ev, loadLivePosts);
-    return () => window.removeEventListener(ev, loadLivePosts);
+    const syncAll = () => { loadLivePosts(); loadBookmarks(); };
+    window.addEventListener(ev, syncAll);
+    return () => window.removeEventListener(ev, syncAll);
   }, []);
 
   const posts = useMemo(
@@ -209,6 +234,45 @@ function Board() {
     );
   };
 
+  const toggleBookmark = async (postId, isMock) => {
+    const strId = String(postId);
+    const isBookmarked = bookmarkIds.includes(strId);
+    // Optimistic update
+    setBookmarkIds((prev) =>
+      isBookmarked ? prev.filter((id) => id !== strId) : [...prev, strId]
+    );
+    if (!isMock && auth?.accessToken) {
+      try {
+        if (isBookmarked) {
+          const res = await fetch(`/api/bookmarks/${postId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${auth.accessToken}` },
+          });
+          if (!res.ok) throw new Error();
+          toast({ title: locale === 'tr' ? 'Kayitlardan kaldirildi' : 'Removed from saved', variant: 'info' });
+        } else {
+          const res = await fetch('/api/bookmarks', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${auth.accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postId }),
+          });
+          if (!res.ok) throw new Error();
+          toast({ title: locale === 'tr' ? 'Ilan kaydedildi' : 'Listing saved', variant: 'success' });
+        }
+      } catch {
+        // Revert optimistic update on error
+        setBookmarkIds((prev) =>
+          isBookmarked ? [...prev, strId] : prev.filter((id) => id !== strId)
+        );
+        toast({
+          title: locale === 'tr' ? 'Hata' : 'Error',
+          description: locale === 'tr' ? 'Kaydetme islemi basarisiz oldu' : 'Save action failed',
+          variant: 'error',
+        });
+      }
+    }
+  };
+
   return (
     <section className="page" data-screen-label="01 Discover">
       <div className="hero">
@@ -245,10 +309,11 @@ function Board() {
         <div className="readability-fade-panel">
           <div className="eyebrow-wrap" style={{ marginBottom: '10px' }}>
             <span className="hair"></span>
-            <span className="eyebrow">{auth?.accessToken ? 'For you · based on your profile' : 'Trending collaborations'}</span>
+            <span className="eyebrow">{auth?.accessToken ? t('forYouBasedOnProfile', 'For you · based on your profile') : t('privateListings', 'Private listings')}</span>
           </div>
-          <h2>Projects <em>matched</em> to your work</h2>
+          <h2>{auth?.accessToken ? t('projectsMatchedToYourWork', 'Projects matched to your work') : t('discoverHowMatchingWorks', 'Discover how matching works')}</h2>
         </div>
+        {auth?.accessToken && (
         <div className="sortby flex items-center gap-4 flex-wrap">
           <div className="relative">
              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -273,8 +338,10 @@ function Board() {
           </div>
           <span className="hidden sm:inline text-white/80">Sorted by <strong className="text-white">match score</strong></span>
         </div>
+        )}
       </div>
 
+      {auth?.accessToken && (
       <div className="filterbar">
         <span className={`filter ${activeFilter === 'All' ? 'active' : ''}`} onClick={() => setActiveFilter('All')}>
           <span className="pip"></span>Top matches
@@ -288,45 +355,108 @@ function Board() {
         <span className="filterbar-spacer"></span>
         <span className="sortby">{orderedPosts.length} of {posts.length}</span>
       </div>
+      )}
 
       <div className="grid-listings mb-10">
-        {orderedPosts.map(post => {
-           const isFav = favoriteIds.includes(String(post.id));
-           const matchScore = Number.isFinite(post.matchScore) ? post.matchScore : 68;
-           const isHigh = matchScore > 80;
-           const isMed = matchScore > 60;
-           return (
-             <article key={post.id} className="listing cursor-pointer transition-transform hover:-translate-y-1" onClick={() => navigate(`/post/${post.id}`)}>
-               <div className="listing-hero" style={{ backgroundImage: `url('${post.imageUrl}')` }}>
-                 <button
-                   type="button"
-                   onClick={(e) => { e.stopPropagation(); toggleFavorite(String(post.id)); }}
-                   className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/60 dark:bg-black/60 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:scale-110 transition-all z-10"
-                 >
-                   <Heart size={16} fill={isFav ? 'currentColor' : 'none'} strokeWidth={isFav ? 1.5 : 2} className={isFav ? "text-[#E63946]" : "text-black dark:text-white"} />
-                 </button>
-                 <span className={`absolute top-3 left-3 text-[11px] font-bold px-2 py-0.5 rounded-full z-10 bg-white/70 dark:bg-black/70 backdrop-blur border border-white/30 dark:border-black/30 w-max ${isHigh ? 'text-emerald-700 dark:text-emerald-400' : isMed ? 'text-amber-700 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-400'}`}>
-                   {matchScore}% Match
-                 </span>
-               </div>
-               <div className="listing-body">
-                 <div className="listing-org">{post.city || 'Remote Collaboration'}</div>
-                 <h3 className="listing-title">{post.title}</h3>
-                 <div className="listing-tags">
-                   {post.tags.slice(0, 4).map((tag) => (
-                     <span key={tag} className="tag">{tag}</span>
-                   ))}
-                 </div>
-               </div>
-               <div className="listing-foot">
-                 <span className="meta">{post.role} needed</span>
-                 <span className="price">
-                   View <Tag size={12} className="inline ml-1 mb-0.5" />
-                 </span>
-               </div>
-             </article>
-           )
-        })}
+        {!auth?.accessToken ? (
+          <div className="col-span-full rounded-2xl border border-border/70 bg-card/70 p-8 text-center">
+            <h3 className="font-serif text-3xl text-foreground">Listings are members-only</h3>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
+              You can view platform overview publicly, but project listings stay private to protect partner data and collaboration details.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Link to="/auth?mode=register" className="btn-primary">Create free account</Link>
+              <Link to="/auth?mode=login" className="btn-secondary">Sign in</Link>
+            </div>
+          </div>
+        ) : liveLoading ? (
+          <BoardGridSkeleton count={6} />
+        ) : orderedPosts.length === 0 && posts.length === 0 ? (
+          <NoPosts canCreate={Boolean(auth?.accessToken)} />
+        ) : orderedPosts.length === 0 ? (
+          <NoResults query={searchTerm} onClear={clearAll} />
+        ) : (
+          <>
+            <div className="grid-listings-inner col-span-full w-full">
+              {orderedPosts.map((post, idx) => {
+                const isBookmarked = bookmarkIds.includes(String(post.id));
+                const isFav = favoriteIds.includes(String(post.id));
+                // Login gate: blur cards beyond index 2 for guests
+                const isGated = !auth?.accessToken && idx >= 3;
+
+                return (
+                  <div
+                    key={post.id}
+                    className="listing-card"
+                    style={isGated ? { filter: 'blur(6px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.7 } : {}}
+                    onClick={() => !isGated && navigate(`/post/${post.id}`)}
+                  >
+                    <div className="listing-img" style={{ backgroundImage: `url("${post.imageUrl}")` }} />
+                    <div className="listing-body">
+                      <div className="listing-tags">
+                        {post.tags.slice(0, 2).map((t) => (
+                          <span key={t} className="listing-tag">{t}</span>
+                        ))}
+                      </div>
+                      <h3 className="listing-title">{post.title}</h3>
+                      <div className="listing-meta">
+                        {post.city && <span><MapPin size={11} className="inline mr-1" />{post.city}</span>}
+                        <span><Tag size={11} className="inline mr-1" />{post.role}</span>
+                      </div>
+                      <div className="listing-preview">
+                        <p>{post.description || 'No additional details provided.'}</p>
+                      </div>
+                    </div>
+                    <div className="listing-footer">
+                      <div className="listing-score">
+                        <Cpu size={12} />
+                        <span>{post.matchScore}% match</span>
+                      </div>
+                      {auth?.accessToken && (
+                        <button
+                          className={`listing-bookmark ${isBookmarked ? 'active' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleBookmark(post.id, post.isMock); }}
+                          aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                        >
+                          <Heart size={14} className={isBookmarked ? 'fill-current' : ''} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Login gate overlay — shown when guest sees more than 3 cards */}
+            {!auth?.accessToken && orderedPosts.length > 3 && (
+              <div
+                className="col-span-full w-full"
+                style={{
+                  marginTop: '-120px',
+                  position: 'relative',
+                  zIndex: 10,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  padding: '40px 24px 32px',
+                  background: 'linear-gradient(to bottom, transparent 0%, var(--bg) 30%)',
+                }}
+              >
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', margin: '0 0 8px', color: 'var(--fg)' }}>
+                  {orderedPosts.length - 3}+ more projects waiting
+                </p>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', color: 'var(--fg-subtle)', margin: '0 0 24px', maxWidth: '360px', lineHeight: 1.6 }}>
+                  Join the network to see all listings, get match scores based on your profile, and send collaboration requests.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <Link to="/auth?mode=register" className="btn-primary">Join for free</Link>
+                  <Link to="/auth?mode=login" className="btn-secondary">Sign in</Link>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

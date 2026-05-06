@@ -22,6 +22,9 @@ import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { CreatePostCTA } from '@/components/ui/hand-writing-text';
 import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
 import { calculateProjectMatchScore } from '@/lib/matchScore';
+import { DashboardStatsSkeleton, MeetingRowSkeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/components/ui/toast';
+import { useLocale } from '@/contexts/locale-context';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -148,6 +151,8 @@ function buildMeetingNotifications(list, uid) {
 
 function Dashboard() {
   const auth = getAuth();
+  const { toast } = useToast();
+  const { t } = useLocale();
   const role = auth?.user?.role;
   const isHealthcare = role === 'healthcare';
   const canCreatePost = role === 'healthcare' || role === 'engineer';
@@ -162,6 +167,18 @@ function Dashboard() {
   const [meetingsLoading, setMeetingsLoading] = useState(true);
   const [recommendedProjects, setRecommendedProjects] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [savedTab, setSavedTab] = useState(false);
+
+  const loadSavedPosts = async () => {
+    const a = getAuth();
+    if (!a?.accessToken) { setSavedPosts([]); return; }
+    try {
+      const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${a.accessToken}` } });
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.data)) setSavedPosts(json.data);
+    } catch { setSavedPosts([]); }
+  };
 
   const loadPosts = async () => {
     const a = getAuth();
@@ -311,11 +328,13 @@ function Dashboard() {
   useEffect(() => {
     loadPosts();
     loadMeetingsData();
+    loadSavedPosts();
     const ev = getAuthChangedEventName();
     const sync = () => {
       loadPosts();
       loadMeetingsData();
       loadRecommendedProjects();
+      loadSavedPosts();
     };
     loadRecommendedProjects();
     window.addEventListener(ev, sync);
@@ -362,35 +381,46 @@ function Dashboard() {
     <section className="page" data-screen-label="02 Dashboard">
       <div className="dash">
         <div className="sidebar">
-          <h4>Inbox</h4>
+          <h4>{t('inbox', 'Inbox')}</h4>
           <ul>
-            <li className="active">All requests <span className="count">{meetingPending ?? 0}</span></li>
-            <li>Awaiting response <span className="count">{meetingPending ?? 0}</span></li>
-            <li>NDA / accepted <span className="count">{notifications.filter((n) => n.kind === 'accepted').length}</span></li>
-            <li>Scheduled <span className="count">{notifications.filter((n) => n.kind === 'scheduled').length}</span></li>
+            <li className="active">{t('allRequests', 'All requests')} <span className="count">{meetingPending ?? 0}</span></li>
+            <li>{t('awaitingResponse', 'Awaiting response')} <span className="count">{meetingPending ?? 0}</span></li>
+            <li>{t('ndaAccepted', 'NDA / accepted')} <span className="count">{notifications.filter((n) => n.kind === 'accepted').length}</span></li>
+            <li>{t('scheduled', 'Scheduled')} <span className="count">{notifications.filter((n) => n.kind === 'scheduled').length}</span></li>
           </ul>
-          <h4>Quick actions</h4>
+          <li
+            className={savedTab ? 'active' : ''}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setSavedTab((v) => !v)}
+          >
+            {t('savedListings', 'Saved Listings')} <span className="count">{savedPosts.length}</span>
+          </li>
+          <h4>{t('quickActions', 'Quick actions')}</h4>
           <div className="mt-4">
             {canCreatePost && (
               <Link to="/post/new" className="btn btn-primary w-full text-center justify-center">
-                <Plus size={14} /> Post project
+                <Plus size={14} /> {t('postProject', 'Post project')}
               </Link>
             )}
             <Link to="/meetings" className="btn btn-ghost w-full text-center justify-center mt-2">
-              <Inbox size={14} /> Open requests workspace
+              <Inbox size={14} /> {t('openRequestsWorkspace', 'Open requests workspace')}
             </Link>
           </div>
         </div>
 
         <div className="main">
           <div className="metrics">
-            {stats.map((item, idx) => (
-              <div key={item.title} className="metric">
-                <span className="label text-muted-foreground">{item.title}</span>
-                <span className="num text-foreground">{item.value}</span>
-                <span className="delta">{item.note}</span>
-              </div>
-            ))}
+            {loading && meetingsLoading ? (
+              <DashboardStatsSkeleton />
+            ) : (
+              stats.map((item) => (
+                <div key={item.title} className="metric">
+                  <span className="label text-muted-foreground">{item.title}</span>
+                  <span className="num text-foreground">{item.value}</span>
+                  <span className="delta">{item.note}</span>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="panel">
@@ -401,7 +431,9 @@ function Dashboard() {
               </Link>
             </div>
             
-            {notifications.slice(0, 6).map((n) => {
+            {meetingsLoading ? (
+              [0,1,2].map((i) => <MeetingRowSkeleton key={i} />)
+            ) : notifications.slice(0, 6).map((n) => {
               const uStatus = n.kind === 'scheduled' ? 'scheduled' : n.kind === 'accepted' ? 'nda' : 'pending';
               const isNda = uStatus === 'nda';
               const isPending = uStatus === 'pending';
@@ -427,8 +459,7 @@ function Dashboard() {
                 </div>
               );
             })}
-            
-            {!notifications.length && (
+            {!meetingsLoading && !notifications.length && (
               <div className="p-6 text-center text-muted-foreground text-sm">
                 No inbound requests yet.
               </div>
@@ -470,6 +501,42 @@ function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* ── Kaydettiğim İlanlar panel ── */}
+          {savedTab && (
+            <div className="panel">
+              <div className="panel-head">
+                <h3>{t('savedListings', 'Saved Listings')}</h3>
+                <span className="text-xs text-muted-foreground">{savedPosts.length} ilan</span>
+              </div>
+              {savedPosts.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  {t('noSavedListings', 'No saved listings yet.')}{' '}
+                  <a href="/board" className="text-primary underline">{t('discoverListings', 'Discover listings')} &rarr;</a>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {savedPosts.map((b) => {
+                    const p = b.post ?? b;
+                    return (
+                      <li key={b.id ?? p.id}>
+                        <a
+                          href={`/post/${p.id ?? b.postId ?? b.post_id}`}
+                          className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-background/55 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-sm text-foreground">{p.title || `Post #${p.id}`}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{p.city || 'Remote'} · {p.required_expertise || '—'}</p>
+                          </div>
+                          <ArrowUpRight size={15} className="shrink-0 text-muted-foreground" />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -10,9 +10,13 @@ import {
   CheckCircle2,
   Loader2,
   CalendarClock,
+  Bookmark,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { boardListings } from '@/lib/showcaseListings';
+import MatchScoreRing from '@/components/ui/match-score-ring';
+import { calculateProjectMatchScore } from '@/lib/matchScore';
+import { useToast } from '@/components/ui/toast';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -90,6 +94,8 @@ function PostDetail() {
   const [slotBusy, setSlotBusy] = useState(false);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [activeRequestStatus, setActiveRequestStatus] = useState('');
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const { toast } = useToast();
   const mockSource = boardListings.find((item) => String(item.id) === String(id)) || null;
   const isMockPost = Boolean(mockSource);
 
@@ -133,10 +139,45 @@ function PostDetail() {
 
   useEffect(() => {
     loadPost();
+    const auth = getAuth();
+    if (auth?.accessToken && !isMockPost && id) {
+      fetch(`/api/bookmarks/status/${id}`, { headers: { Authorization: `Bearer ${auth.accessToken}` } })
+        .then((r) => r.json())
+        .then((json) => { if (json?.bookmarked != null) setIsBookmarked(Boolean(json.bookmarked)); })
+        .catch(() => {});
+    }
     const ev = getAuthChangedEventName();
     window.addEventListener(ev, loadPost);
     return () => window.removeEventListener(ev, loadPost);
-  }, [loadPost]);
+  }, [loadPost, isMockPost, id]);
+
+  const handleToggleBookmark = async () => {
+    const auth = getAuth();
+    if (!auth?.accessToken || isMockPost) return;
+    const next = !isBookmarked;
+    setIsBookmarked(next);
+    try {
+      if (next) {
+        const res = await fetch('/api/bookmarks', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${auth.accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: parseInt(id, 10) }),
+        });
+        if (!res.ok) throw new Error();
+        toast({ title: 'İlan kaydedildi', variant: 'success' });
+      } else {
+        const res = await fetch(`/api/bookmarks/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        });
+        if (!res.ok) throw new Error();
+        toast({ title: 'Kaydedilenlerden çıkarıldı', variant: 'info' });
+      }
+    } catch {
+      setIsBookmarked(!next); // revert
+      toast({ title: 'Hata', description: 'Kaydetme işlemi başarısız', variant: 'error' });
+    }
+  };
 
   useEffect(() => {
     if (isMockPost) {
@@ -357,6 +398,26 @@ function PostDetail() {
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
+            {/* MatchScoreRing — top right */}
+            {getAuth()?.user && (
+              <div className="absolute top-4 right-4 z-20">
+                {(() => {
+                  const ms = calculateProjectMatchScore(getAuth().user, post);
+                  return <MatchScoreRing score={ms.score} signals={ms.signals ?? {}} size={60} />;
+                })()}
+              </div>
+            )}
+            {/* Bookmark button — top left */}
+            {getAuth()?.accessToken && !post.isMock && (
+              <button
+                type="button"
+                onClick={handleToggleBookmark}
+                className="absolute top-4 left-4 z-20 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/20 hover:scale-110 transition-all"
+                title={isBookmarked ? 'Kaydedilenlerden çıkar' : 'Kaydet'}
+              >
+                <Bookmark size={16} fill={isBookmarked ? 'currentColor' : 'none'} className={isBookmarked ? 'text-violet-400' : 'text-white'} />
+              </button>
+            )}
             <div className="relative z-10 p-8 sm:p-10 text-white">
               <div className="flex flex-wrap gap-2 mb-4">
                 {!post.isMock && post.status && (

@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const { Op } = require('sequelize');
 const { User, Post, MeetingRequest, NdaAcceptance, ActivityLog } = require('../models');
 const env = require('../config/env');
 
@@ -109,25 +110,43 @@ const exportData = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    const safeQuery = async (label, queryFn, fallback = []) => {
+      try {
+        return await queryFn();
+      } catch (error) {
+        console.error(`exportData ${label} query error:`, error?.message || error);
+        return fallback;
+      }
+    };
+
     const [user, posts, meetings, ndas] = await Promise.all([
-      User.findByPk(userId),
-      Post.findAll({ where: { userId } }),
-      MeetingRequest.findAll({
-        where: { [require('sequelize').Op.or]: [{ requesterId: userId }, { postOwnerId: userId }] },
-      }),
-      NdaAcceptance.findAll({ where: { userId } }),
+      safeQuery('user', () => User.findByPk(userId), null),
+      safeQuery('posts', () => Post.findAll({ where: { userId } })),
+      safeQuery('meetings', () =>
+        MeetingRequest.findAll({
+          where: { [Op.or]: [{ requesterId: userId }, { postOwnerId: userId }] },
+        })
+      ),
+      safeQuery('ndas', () => NdaAcceptance.findAll({ where: { userId } })),
     ]);
+
+    // toJSON() converts Sequelize model instances to plain objects,
+    // preventing circular-reference errors in JSON.stringify
+    const OMIT = new Set(['passwordHash', 'verifyToken', 'verifyExpiry', 'resetToken', 'resetExpiry']);
+    const safeUser = user ? Object.fromEntries(
+      Object.entries(user.toJSON()).filter(([k]) => !OMIT.has(k))
+    ) : null;
 
     const exportPayload = {
       exportedAt: new Date().toISOString(),
-      profile: user,
-      posts,
-      meetingRequests: meetings,
-      ndaAcceptances: ndas,
+      profile: safeUser,
+      posts: posts.map((p) => p.toJSON()),
+      meetingRequests: meetings.map((m) => m.toJSON()),
+      ndaAcceptances: ndas.map((n) => n.toJSON()),
     };
 
+    // Keep Content-Disposition so browsers download; Content-Type set by res.json()
     res.setHeader('Content-Disposition', `attachment; filename="healthai_data_${userId}.json"`);
-    res.setHeader('Content-Type', 'application/json');
     return res.json(exportPayload);
   } catch (err) {
     console.error('exportData hatası:', err);
@@ -135,4 +154,29 @@ const exportData = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, exportData, changePassword };
+// ── GET /api/users/:id/public ──────────────────────────────────
+// Başka bir kullanıcının herkese açık profili (sadece doğrulanmış, aktif)
+const getPublicProfile = async (req, res) => {
+  try {
+    const user = await User.findOne({
+      where: { id: req.params.id, isActive: true, isVerified: true },
+      attributes: ['id', 'firstName', 'lastName', 'institution', 'city', 'country', 'expertise', 'role', 'createdAt'],
+    });
+    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+
+    // Kullanıcının aktif ilanlarını da döndür
+    const posts = await Post.findAll({
+      where: { userId: user.id, status: 'active' },
+      attributes: ['id', 'title', 'domain', 'projectStage', 'city', 'createdAt'],
+      order: [['createdAt', 'DESC']],
+      limit: 10,
+    });
+
+    return res.json({ user, posts });
+  } catch (err) {
+    console.error('getPublicProfile hatası:', err);
+    return res.status(500).json({ message: 'Sunucu hatası.' });
+  }
+};
+
+module.exports = { getProfile, updateProfile, deleteAccount, exportData, changePassword, getPublicProfile };

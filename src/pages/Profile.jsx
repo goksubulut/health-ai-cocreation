@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProfileCompletion, { calculateProfileCompletion } from '@/components/ui/profile-completion';
+import { useToast } from '@/components/ui/toast';
 import {
   UserX,
   DownloadCloud,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clearAuth, getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { downloadUserDataPdf } from '@/lib/exportUserDataPdf';
+import { useLocale } from '@/contexts/locale-context';
 
 const STATUS_LABELS = {
   draft: 'Draft',
@@ -100,7 +103,19 @@ function Profile() {
   });
 
   const auth = getAuth();
+  const { toast } = useToast();
+  const { locale } = useLocale();
   const token = auth?.accessToken;
+
+  // Field refs for ProfileCompletion onFieldClick
+  const fieldRefs = {
+    firstName:   useRef(null),
+    lastName:    useRef(null),
+    institution: useRef(null),
+    city:        useRef(null),
+    country:     useRef(null),
+    expertise:   useRef(null),
+  };
 
   const loadProfile = useCallback(async () => {
     const a = getAuth();
@@ -278,8 +293,11 @@ function Profile() {
       if (!res.ok) throw new Error(data.message || 'Could not save profile.');
       setProfile(data.user);
       setSaveMsg('Profile saved.');
+      toast({ title: locale === 'tr' ? 'Profil guncellendi' : 'Profile updated', variant: 'success' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save profile.');
+      const msg = err instanceof Error ? err.message : 'Could not save profile.';
+      setError(msg);
+      toast({ title: locale === 'tr' ? 'Hata' : 'Error', description: msg, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -337,8 +355,10 @@ function Profile() {
       setPwdForm({ current: '', new: '', confirm: '' });
       setPwdError('');
       setPwdSuccessMsg('Password updated.');
+      toast({ title: locale === 'tr' ? 'Sifre guncellendi' : 'Password updated', variant: 'success' });
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not change password.');
+      const msg = e instanceof Error ? e.message : 'Could not change password.';
+      toast({ title: locale === 'tr' ? 'Hata' : 'Error', description: msg, variant: 'error' });
     } finally {
       setPwdSaving(false);
     }
@@ -455,6 +475,17 @@ function Profile() {
 
         {tab === 'settings' && (
           <>
+            {/* Profile Completion Widget */}
+            {profile && (
+              <ProfileCompletion
+                user={profile}
+                onFieldClick={(fieldName) => {
+                  fieldRefs[fieldName]?.current?.focus();
+                  fieldRefs[fieldName]?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              />
+            )}
+
             <section className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md">
               <div className="mb-6 flex items-start gap-3">
                 <div className="rounded-full bg-primary/10 p-2 text-primary">
@@ -475,6 +506,7 @@ function Profile() {
                       First name
                     </label>
                     <input
+                      ref={fieldRefs.firstName}
                       className={inputClass}
                       value={form.firstName}
                       onChange={(e) => setForm({ ...form, firstName: e.target.value })}
@@ -487,6 +519,7 @@ function Profile() {
                       Last name
                     </label>
                     <input
+                      ref={fieldRefs.lastName}
                       className={inputClass}
                       value={form.lastName}
                       onChange={(e) => setForm({ ...form, lastName: e.target.value })}
@@ -500,6 +533,7 @@ function Profile() {
                     Institution
                   </label>
                   <input
+                    ref={fieldRefs.institution}
                     className={inputClass}
                     value={form.institution}
                     onChange={(e) => setForm({ ...form, institution: e.target.value })}
@@ -511,6 +545,7 @@ function Profile() {
                       City
                     </label>
                     <input
+                      ref={fieldRefs.city}
                       className={inputClass}
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
@@ -521,6 +556,7 @@ function Profile() {
                       Country
                     </label>
                     <input
+                      ref={fieldRefs.country}
                       className={inputClass}
                       value={form.country}
                       onChange={(e) => setForm({ ...form, country: e.target.value })}
@@ -532,6 +568,7 @@ function Profile() {
                     Expertise
                   </label>
                   <input
+                    ref={fieldRefs.expertise}
                     className={inputClass}
                     value={form.expertise}
                     onChange={(e) => setForm({ ...form, expertise: e.target.value })}

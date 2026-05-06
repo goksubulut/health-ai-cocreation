@@ -295,6 +295,11 @@ const getPostById = async (req, res) => {
       return res.status(403).json({ message: 'You do not have access to this post.' });
     }
 
+    // Görüntülenme sayısını artır (sahip kendi ilanını görüntülemiyorsa)
+    if (!isOwner(post, req.user.id)) {
+      Post.increment('viewCount', { where: { id: post.id } }).catch(() => {});
+    }
+
     let descriptionOverride;
     const viewerIsOwner = isOwner(post, req.user.id);
 

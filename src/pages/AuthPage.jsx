@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getDashboardPathByRole, setAuth } from '@/lib/auth';
+import { useToast } from '@/components/ui/toast';
 
 const meshBackground = "/assets/mesh_5.png";
 
@@ -25,6 +26,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const mode = searchParams.get('mode') || 'login';
   const isLogin = mode === 'login';
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -110,12 +112,15 @@ function AuthPage() {
           throw new Error(data.errors?.[0] || data.message || 'Registration failed.');
         }
 
-        setInfo(data.message || 'Registration successful. Please verify your email, then sign in.');
+        const infoMsg = data.message || 'Registration successful. Please verify your email, then sign in.';
+        setInfo(infoMsg);
+        toast({ title: 'Kayıt başarılı', description: infoMsg, variant: 'success' });
         setSearchParams({ mode: 'login' });
         setFormData({ email: formData.email, password: '', firstName: '', lastName: '', role: '' });
       }
     } catch (submitError) {
       setError(submitError.message);
+      toast({ title: 'Hata', description: submitError.message, variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }

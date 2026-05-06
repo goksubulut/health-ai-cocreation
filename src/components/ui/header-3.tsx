@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
-import { CircleHelp, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, CircleHelp, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import {
@@ -15,26 +15,153 @@ import {
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/contexts/locale-context';
+
+type Notification = {
+  id: number;
+  title: string;
+  body?: string;
+  isRead: boolean;
+  refType?: string;
+  refId?: number;
+  createdAt?: string;
+};
+
+function NotificationBell({ getToken, labels }: { getToken: () => string | null; labels: Record<string, string> }) {
+  const [open, setOpen] = React.useState(false);
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const bellRef = React.useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+
+  const load = React.useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/notifications?limit=5', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.data)) {
+        setNotifications(json.data);
+        setUnreadCount(json.data.filter((n: Notification) => !n.isRead).length);
+      }
+    } catch { /* silent */ }
+  }, [getToken]);
+
+  React.useEffect(() => {
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const markAllRead = async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      await fetch('/api/notifications/read-all', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch { /* silent */ }
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    setOpen(false);
+    if (n.refType === 'meeting' && n.refId) navigate(`/meetings/${n.refId}`);
+    else if (n.refType === 'post' && n.refId) navigate(`/post/${n.refId}`);
+  };
+
+  return (
+    <div ref={bellRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="relative opacity-70 hover:opacity-100 px-2 text-foreground"
+        aria-label={labels.notifications}
+      >
+        <Bell size={16} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-80 rounded-xl border border-border/70 bg-popover/95 shadow-lg backdrop-blur-md overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{labels.notifications}</span>
+            {unreadCount > 0 && (
+              <button type="button" onClick={markAllRead} className="text-xs text-primary hover:underline">
+                {labels.markAllAsRead}
+              </button>
+            )}
+          </div>
+          {notifications.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">{labels.noNotifications}</div>
+          ) : (
+            <ul>
+              {notifications.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleNotificationClick(n)}
+                    className={cn(
+                      'w-full text-left px-4 py-3 text-sm hover:bg-accent transition-colors border-b border-border/30 last:border-0',
+                      !n.isRead && 'bg-primary/5'
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                      <div className={!n.isRead ? '' : 'ml-4'}>
+                        <p className="font-medium text-foreground leading-snug">{n.title}</p>
+                        {n.body && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{n.body}</p>}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type HeaderProps = {
   isAuthenticated: boolean;
   dashboardPath: string;
   profilePath: string;
+  settingsPath: string;
   userInitials?: string;
   onSignOut: () => void;
   theme: string | undefined;
   onToggleTheme: () => void;
+  getToken?: () => string | null;
 };
 
 export function Header({
   isAuthenticated,
   dashboardPath,
   profilePath,
+  settingsPath,
   userInitials,
   onSignOut,
   theme,
   onToggleTheme,
+  getToken,
 }: HeaderProps) {
+  const { t } = useLocale();
   const [open, setOpen] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
   const menuOpenTimeoutRef = React.useRef<number | null>(null);
@@ -119,19 +246,19 @@ export function Header({
           <div className="nav-links hidden md:flex">
             {isAuthenticated ? (
               <>
-                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>Discover</Link>
-                <Link to={dashboardPath} className={cn("nav-link", location.pathname.includes('/dashboard') && "active")}>Dashboard</Link>
+                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>{t('discover', 'Discover')}</Link>
+                <Link to={dashboardPath} className={cn("nav-link", location.pathname.includes('/dashboard') && "active")}>{t('dashboard', 'Dashboard')}</Link>
               </>
             ) : (
               <>
-                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>Discover</Link>
+                <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>{t('discover', 'Discover')}</Link>
               </>
             )}
             
             <NavigationMenu className="md:flex">
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="bg-transparent text-[13px] font-medium text-muted-foreground h-auto p-0 px-3 hover:bg-transparent hover:text-foreground">Help</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="bg-transparent text-[13px] font-medium text-muted-foreground h-auto p-0 px-3 hover:bg-transparent hover:text-foreground">{t('help', 'Help')}</NavigationMenuTrigger>
                   <NavigationMenuContent className="bg-background p-2 w-[240px] border border-border/70 rounded-xl shadow-lg">
                     <ul className="grid w-[240px] gap-1 rounded-md bg-popover shadow">
                       <HelpLink href="/help/faq" title="FAQ" description="Questions & answers." />
@@ -151,6 +278,16 @@ export function Header({
               <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               </button>
+              {isAuthenticated && getToken && (
+                <NotificationBell
+                  getToken={getToken}
+                  labels={{
+                    notifications: t('notifications', 'Notifications'),
+                    markAllAsRead: t('markAllAsRead', 'Mark all as read'),
+                    noNotifications: t('noNotifications', 'No notifications'),
+                  }}
+                />
+              )}
               <div
                 className="relative"
                 onMouseEnter={openProfileMenu}
@@ -179,14 +316,14 @@ export function Header({
                   >
                     <div className="px-2 py-1.5 text-xs uppercase tracking-[0.16em] text-muted-foreground">Account</div>
                     <Link to={profilePath} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent" role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                      <User size={14} strokeWidth={1.5} /> Profile
+                      <User size={14} strokeWidth={1.5} /> {t('profile', 'Profile')}
                     </Link>
-                    <button type="button" className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
-                      <Settings size={14} strokeWidth={1.5} /> Settings
-                    </button>
+                    <Link to={settingsPath} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                      <Settings size={14} strokeWidth={1.5} /> {t('settings', 'Settings')}
+                    </Link>
                     <div className="my-1 h-px bg-border/70"></div>
                     <button type="button" onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent" role="menuitem">
-                      <LogOut size={14} strokeWidth={1.5} /> Sign out
+                      <LogOut size={14} strokeWidth={1.5} /> {t('signOut', 'Sign out')}
                     </button>
                   </div>
                 ) : null}
@@ -197,8 +334,8 @@ export function Header({
               <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <Link to="/auth?mode=login" className="btn btn-ghost px-4 py-1.5 text-[13px] min-h-[32px]">Sign In</Link>
-              <Link to="/auth?mode=register" className="btn btn-primary px-4 py-1.5 text-[13px] min-h-[32px]">Register</Link>
+              <Link to="/auth?mode=login" className="btn btn-ghost px-4 py-1.5 text-[13px] min-h-[32px]">{t('signIn', 'Sign in')}</Link>
+              <Link to="/auth?mode=register" className="btn btn-primary px-4 py-1.5 text-[13px] min-h-[32px]">{t('register', 'Register')}</Link>
             </>
           )}
         </div>
@@ -235,9 +372,10 @@ export function Header({
         <div className="rounded-xl border border-border/60 bg-card/70 p-2">
           {isAuthenticated ? (
             <>
-              <MobileLink to={dashboardPath} onClick={() => setOpen(false)}>Dashboard</MobileLink>
-              <MobileLink to="/board" onClick={() => setOpen(false)}>Discover</MobileLink>
-              <MobileLink to={profilePath} onClick={() => setOpen(false)}>Profile</MobileLink>
+              <MobileLink to={dashboardPath} onClick={() => setOpen(false)}>{t('dashboard', 'Dashboard')}</MobileLink>
+              <MobileLink to="/board" onClick={() => setOpen(false)}>{t('discover', 'Discover')}</MobileLink>
+              <MobileLink to={profilePath} onClick={() => setOpen(false)}>{t('profile', 'Profile')}</MobileLink>
+              <MobileLink to={settingsPath} onClick={() => setOpen(false)}>{t('settings', 'Settings')}</MobileLink>
               <button
                 type="button"
                 className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-accent"
@@ -246,14 +384,14 @@ export function Header({
                   onSignOut();
                 }}
               >
-                Sign Out
+                {t('signOut', 'Sign out')}
               </button>
             </>
           ) : (
             <>
-              <MobileLink to="/board" onClick={() => setOpen(false)}>Discover</MobileLink>
-              <MobileLink to="/auth?mode=login" onClick={() => setOpen(false)}>Sign In</MobileLink>
-              <MobileLink to="/auth?mode=register" onClick={() => setOpen(false)}>Register</MobileLink>
+              <MobileLink to="/board" onClick={() => setOpen(false)}>{t('discover', 'Discover')}</MobileLink>
+              <MobileLink to="/auth?mode=login" onClick={() => setOpen(false)}>{t('signIn', 'Sign in')}</MobileLink>
+              <MobileLink to="/auth?mode=register" onClick={() => setOpen(false)}>{t('register', 'Register')}</MobileLink>
             </>
           )}
           <button

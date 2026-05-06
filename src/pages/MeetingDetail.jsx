@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
+import MeetingTimeline from '@/components/ui/meeting-timeline';
+import { useToast } from '@/components/ui/toast';
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -34,6 +36,7 @@ function MeetingDetail() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const auth = getAuth();
+  const { toast } = useToast();
   const token = auth?.accessToken;
   const uid = auth?.user?.id;
 
@@ -82,15 +85,15 @@ function MeetingDetail() {
     setActionBusy(true);
     setErr('');
     try {
-      const res = await fetch(`/api/meetings/${id}/accept`, {
-        method: 'PATCH',
-        headers,
-      });
+      const res = await fetch(`/api/meetings/${id}/accept`, { method: 'PATCH', headers });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Accept failed.');
       setM(json.data);
+      toast({ title: 'İstek kabul edildi', variant: 'success' });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Accept failed.');
+      const msg = e instanceof Error ? e.message : 'Accept failed.';
+      setErr(msg);
+      toast({ title: 'Hata', description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
@@ -101,15 +104,15 @@ function MeetingDetail() {
     setActionBusy(true);
     setErr('');
     try {
-      const res = await fetch(`/api/meetings/${id}/decline`, {
-        method: 'PATCH',
-        headers,
-      });
+      const res = await fetch(`/api/meetings/${id}/decline`, { method: 'PATCH', headers });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Decline failed.');
       setM(json.data);
+      toast({ title: 'İstek reddedildi', variant: 'info' });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Decline failed.');
+      const msg = e instanceof Error ? e.message : 'Decline failed.';
+      setErr(msg);
+      toast({ title: 'Hata', description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
@@ -213,15 +216,15 @@ function MeetingDetail() {
     setActionBusy(true);
     setErr('');
     try {
-      const res = await fetch(`/api/meetings/${id}/slots/${slotId}/confirm`, {
-        method: 'PATCH',
-        headers,
-      });
+      const res = await fetch(`/api/meetings/${id}/slots/${slotId}/confirm`, { method: 'PATCH', headers });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Confirm failed.');
       setM(json.data);
+      toast({ title: 'Toplantı zamanlandı', variant: 'success' });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Confirm failed.');
+      const msg = e instanceof Error ? e.message : 'Confirm failed.';
+      setErr(msg);
+      toast({ title: 'Hata', description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
@@ -341,6 +344,12 @@ function MeetingDetail() {
                 </div>
               )}
             </motion.header>
+
+            {/* Meeting Timeline */}
+            <div className="rounded-2xl border border-border/60 bg-card/50 p-5">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">İlerleme</p>
+              <MeetingTimeline meeting={m} />
+            </div>
 
             {err && (
               <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

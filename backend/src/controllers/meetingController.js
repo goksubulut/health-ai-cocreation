@@ -17,6 +17,7 @@ const {
   sendMeetingCancelledNotification,
 } = require('../services/emailService');
 const { expireStalePosts } = require('./postController');
+const { createNotification } = require('../services/notificationService');
 
 const USER_ATTRS = ['id', 'email', 'firstName', 'lastName', 'institution', 'city', 'country'];
 const POST_ATTRS_DETAIL = [
@@ -185,6 +186,12 @@ const createMeetingRequest = async (req, res) => {
     const requester = await User.findByPk(requesterId, { attributes: USER_ATTRS });
 
     await sendMeetingRequestNotification(post.owner, requester, post);
+    await createNotification(
+      post.userId, 'meeting_request',
+      'Yeni toplantı isteği',
+      `${requester?.firstName || ''} "${post.title}" ilanın için toplantı talep etti.`,
+      'meeting', meeting.id
+    );
 
     await logActivity({
       userId: requesterId,
@@ -317,6 +324,12 @@ const acceptMeetingRequest = async (req, res) => {
     if (requester && meeting.post) {
       await sendMeetingAcceptedNotification(requester, meeting.post);
     }
+    await createNotification(
+      meeting.requesterId, 'meeting_accepted',
+      'Toplantı isteğin kabul edildi',
+      `"${meeting.post?.title || 'İlan'}" için toplantı isteğin kabul edildi.`,
+      'meeting', meeting.id
+    );
 
     await logActivity({
       userId: req.user.id,
@@ -381,6 +394,12 @@ const declineMeetingRequest = async (req, res) => {
     if (requester && meeting.post) {
       await sendMeetingDeclinedNotification(requester, meeting.post);
     }
+    await createNotification(
+      meeting.requesterId, 'meeting_declined',
+      'Toplantı isteğin reddedildi',
+      `"${meeting.post?.title || 'İlan'}" için toplantı isteğin reddedildi.`,
+      'meeting', meeting.id
+    );
 
     await logActivity({
       userId: req.user.id,
@@ -682,6 +701,15 @@ const confirmSlot = async (req, res) => {
     if (requester && postOwner && post) {
       await sendMeetingScheduledNotification(requester, postOwner, slot.slotDatetime, post);
     }
+    const scheduledAt = new Date(slot.slotDatetime).toLocaleString('tr-TR');
+    await Promise.all([
+      createNotification(meeting.requesterId, 'meeting_scheduled',
+        'Toplantı zamanlandı', `"${post?.title}" için toplantınız ${scheduledAt} tarihinde planlandı.`,
+        'meeting', meeting.id),
+      createNotification(meeting.postOwnerId, 'meeting_scheduled',
+        'Toplantı zamanlandı', `"${post?.title}" için toplantı ${scheduledAt} tarihinde onaylandı.`,
+        'meeting', meeting.id),
+    ]);
 
     await logActivity({
       userId: req.user.id,

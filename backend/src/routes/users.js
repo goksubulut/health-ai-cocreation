@@ -5,6 +5,9 @@ const authenticate = require('../middleware/authenticate');
 const validate = require('../middleware/validate');
 const { updateProfileSchema, deleteAccountSchema, changePasswordSchema } = require('../validations/userSchemas');
 
+// GET /api/users/:id/public — herkese açık profil (auth gerektirmez, önce tanımlanmalı)
+router.get('/:id/public', userController.getPublicProfile);
+
 router.use(authenticate);
 
 // GET  /api/users/profile      — Profili görüntüle

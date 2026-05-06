@@ -4,6 +4,8 @@ const MeetingRequest = require('./MeetingRequest');
 const TimeSlot = require('./TimeSlot');
 const NdaAcceptance = require('./NdaAcceptance');
 const ActivityLog = require('./ActivityLog');
+const Bookmark = require('./Bookmark');
+const Notification = require('./Notification');
 
 // ── İlişkiler ──────────────────────────────────────────────
 
@@ -41,4 +43,14 @@ NdaAcceptance.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
 User.hasMany(ActivityLog, { foreignKey: 'userId', as: 'activityLogs' });
 ActivityLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-module.exports = { User, Post, MeetingRequest, TimeSlot, NdaAcceptance, ActivityLog };
+// User → Bookmarks (M:N aracı Bookmark)
+User.hasMany(Bookmark, { foreignKey: 'userId', as: 'bookmarks' });
+Bookmark.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Post.hasMany(Bookmark, { foreignKey: 'postId', as: 'bookmarks' });
+Bookmark.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
+
+// User → Notifications
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+module.exports = { User, Post, MeetingRequest, TimeSlot, NdaAcceptance, ActivityLog, Bookmark, Notification };

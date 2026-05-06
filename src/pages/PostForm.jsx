@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeft, CheckCircle2, Sparkles, ShieldCheck, Wand2 } fro
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
 import { DatePickerField } from '@/components/ui/date-picker-field';
+import { useToast } from '@/components/ui/toast';
 
 const inputClass =
   'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -98,6 +99,7 @@ function PostForm() {
   const isEdit = Boolean(editId);
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPost, setLoadingPost] = useState(isEdit);
@@ -254,11 +256,12 @@ function PostForm() {
           throw new Error(msg);
         }
       }
+      toast({ title: isEdit ? 'İlan güncellendi' : 'İlan oluşturuldu', variant: 'success' });
       navigate(getDashboardPathByRole(auth.user.role));
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : isEdit ? 'Could not update post.' : 'Could not create post.'
-      );
+      const msg = err instanceof Error ? err.message : isEdit ? 'Could not update post.' : 'Could not create post.';
+      setSubmitError(msg);
+      toast({ title: 'Hata', description: msg, variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { NoMeetings } from '@/components/ui/empty-state';
+import { useToast } from '@/components/ui/toast';
 import {
   Inbox,
   Send,
@@ -160,9 +162,7 @@ function MeetingRequests() {
               <Loader2 className="animate-spin" size={16} /> Loading…
             </p>
           ) : visibleRows.length === 0 ? (
-            <div className="rounded-xl border border-border/50 bg-background/40 p-6 text-sm text-muted-foreground">
-              No {tab === 'incoming' ? 'incoming' : 'outgoing'} meeting requests yet.
-            </div>
+            <NoMeetings />
           ) : (
             <ul className="space-y-3">
               {visibleRows.map((m) => (

@@ -16,6 +16,7 @@ import MeetingRequests from './pages/MeetingRequests';
 import MeetingDetail from './pages/MeetingDetail';
 import MndaAgreementPage from './pages/MndaAgreementPage';
 import Profile from './pages/Profile';
+import SettingsPage from './pages/SettingsPage';
 import HowMatchingWorks from './pages/HowMatchingWorks';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -25,10 +26,15 @@ import AdminLogs from './pages/admin/AdminLogs';
 import AdminStats from './pages/admin/AdminStats';
 import './index.css';
 import { ThemeProvider } from './components/theme-provider';
+import { ToastProvider } from './components/ui/toast';
+import CommandPalette from './components/ui/command-palette';
+import { LocaleProvider } from './contexts/locale-context';
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <LocaleProvider>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
@@ -85,6 +91,14 @@ function App() {
               }
             />
             <Route
+              path="settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="meetings"
               element={
                 <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
@@ -117,7 +131,10 @@ function App() {
             <Route path="logs" element={<AdminLogs />} />
           </Route>
         </Routes>
+        <CommandPalette />
       </BrowserRouter>
+      </ToastProvider>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

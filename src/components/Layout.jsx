@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import { FeedbackWidget } from '@/components/ui/feedback-widget';
 import { Header } from '@/components/ui/header-3';
 import GrainGradientBackground from '@/components/ui/grain-gradient-background';
+import { useLocale } from '@/contexts/locale-context';
 import {
   clearAuth,
   getAuth,
@@ -18,6 +19,7 @@ function Layout() {
   const location = useLocation();
   const [auth, setAuthState] = useState(() => getAuth());
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const { t } = useLocale();
 
   useEffect(() => {
     const prevPath = sessionStorage.getItem('healthai_prev_pathname');
@@ -48,9 +50,13 @@ function Layout() {
     ? `${auth.user.first_name?.[0] || auth.user.firstName?.[0] || ''}${auth.user.last_name?.[0] || auth.user.lastName?.[0] || ''}`.toUpperCase() || auth.user.email?.slice(0, 2).toUpperCase() || 'US'
     : 'US';
 
+  const handleThemeToggle = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <div className="min-h-[100dvh] flex flex-col relative">
-      <GrainGradientBackground />
+      {location.pathname !== '/' && <GrainGradientBackground />}
       <Header
         isAuthenticated={isAuthenticated}
         dashboardPath={dashboardPath}
@@ -61,18 +67,22 @@ function Layout() {
           window.location.href = '/auth?mode=login';
         }}
         theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onToggleTheme={handleThemeToggle}
+        getToken={() => auth?.accessToken ?? null}
+        settingsPath="/settings"
       />
       <Outlet />
-      <button
-        type="button"
-        onClick={() => setFeedbackOpen((v) => !v)}
-        className="fixed bottom-5 left-5 z-[70] inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/95 px-4 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:border-primary/60 hover:text-primary"
-      >
-        <MessageCircle size={16} />
-        Feedback
-      </button>
-      {feedbackOpen && (
+      {location.pathname !== '/' && (
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen((v) => !v)}
+          className="fixed bottom-5 left-5 z-[70] inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/95 px-4 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:border-primary/60 hover:text-primary"
+        >
+          <MessageCircle size={16} />
+          {t('feedback', 'Feedback')}
+        </button>
+      )}
+      {feedbackOpen && location.pathname !== '/' && (
         <div className="fixed bottom-20 left-4 z-[80] sm:left-5">
           <FeedbackWidget
             onClose={() => setFeedbackOpen(false)}
