@@ -3,9 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { GrainGradient } from '@paper-design/shaders-react';
 import { useTheme } from 'next-themes';
+import { useAccessibility } from '@/contexts/accessibility-context';
 
 export default function GrainGradientBackground({ className = "" }) {
   const { resolvedTheme } = useTheme();
+  const { preferences } = useAccessibility();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -24,10 +26,10 @@ export default function GrainGradientBackground({ className = "" }) {
       <GrainGradient
         colors={colors}
         grain={0.0}
-        softness={0.9}
-        intensity={0.6}
-        swirl={0.55}
-        speed={0.9}
+        softness={preferences.reduceMotion ? 1 : 0.9}
+        intensity={preferences.reduceMotion ? 0.32 : 0.6}
+        swirl={preferences.reduceMotion ? 0.05 : 0.55}
+        speed={preferences.reduceMotion ? 0 : 0.9}
         style={{ width: "100%", height: "100%" }}
       />
     </div>

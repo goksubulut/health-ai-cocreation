@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
@@ -30,11 +31,24 @@ import { ToastProvider } from './components/ui/toast';
 import CommandPalette from './components/ui/command-palette';
 import { LocaleProvider } from './contexts/locale-context';
 import { TourProvider } from './contexts/tour-context';
+import { AccessibilityProvider, useAccessibility } from './contexts/accessibility-context';
+
+function AccessibilityMotionBoundary({ children }) {
+  const { preferences } = useAccessibility();
+
+  return (
+    <MotionConfig reducedMotion={preferences.reduceMotion ? 'always' : 'never'}>
+      {children}
+    </MotionConfig>
+  );
+}
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LocaleProvider>
+      <AccessibilityProvider>
+      <AccessibilityMotionBoundary>
       <ToastProvider>
       <BrowserRouter>
         <TourProvider>
@@ -137,6 +151,8 @@ function App() {
         </TourProvider>
       </BrowserRouter>
       </ToastProvider>
+      </AccessibilityMotionBoundary>
+      </AccessibilityProvider>
       </LocaleProvider>
     </ThemeProvider>
   );
