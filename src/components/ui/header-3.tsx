@@ -243,7 +243,7 @@ export function Header({
           <Link to="/" className="wordmark-sm text-foreground">
             HEALTH<em>AI</em>
           </Link>
-          <div className="nav-links hidden md:flex">
+          <div className="nav-links hidden md:flex" data-tour="sidebar-nav">
             {isAuthenticated ? (
               <>
                 <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>{t('discover', 'Discover')}</Link>
@@ -272,7 +272,7 @@ export function Header({
           </div>
         </div>
 
-        <div className="nav-right hidden md:flex">
+        <div className="nav-right hidden md:flex" data-tour="settings-nav">
           {isAuthenticated ? (
             <>
               <button type="button" onClick={onToggleTheme} className="opacity-70 hover:opacity-100 px-2 text-foreground">

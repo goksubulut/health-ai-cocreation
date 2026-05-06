@@ -357,7 +357,7 @@ function Board() {
       </div>
       )}
 
-      <div className="grid-listings mb-10">
+      <div className="grid-listings mb-10" data-tour="discover-board">
         {!auth?.accessToken ? (
           <div className="col-span-full rounded-2xl border border-border/70 bg-card/70 p-8 text-center">
             <h3 className="font-serif text-3xl text-foreground">Listings are members-only</h3>

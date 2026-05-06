@@ -398,18 +398,18 @@ function Dashboard() {
           <h4>{t('quickActions', 'Quick actions')}</h4>
           <div className="mt-4">
             {canCreatePost && (
-              <Link to="/post/new" className="btn btn-primary w-full text-center justify-center">
+              <Link to="/post/new" className="btn btn-primary w-full text-center justify-center" data-tour="create-post-btn">
                 <Plus size={14} /> {t('postProject', 'Post project')}
               </Link>
             )}
-            <Link to="/meetings" className="btn btn-ghost w-full text-center justify-center mt-2">
+            <Link to="/meetings" className="btn btn-ghost w-full text-center justify-center mt-2" data-tour="meetings-tab">
               <Inbox size={14} /> {t('openRequestsWorkspace', 'Open requests workspace')}
             </Link>
           </div>
         </div>
 
         <div className="main">
-          <div className="metrics">
+          <div className="metrics" data-tour="dashboard-overview">
             {loading && meetingsLoading ? (
               <DashboardStatsSkeleton />
             ) : (

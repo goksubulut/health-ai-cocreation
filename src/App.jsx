@@ -29,6 +29,7 @@ import { ThemeProvider } from './components/theme-provider';
 import { ToastProvider } from './components/ui/toast';
 import CommandPalette from './components/ui/command-palette';
 import { LocaleProvider } from './contexts/locale-context';
+import { TourProvider } from './contexts/tour-context';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
       <LocaleProvider>
       <ToastProvider>
       <BrowserRouter>
+        <TourProvider>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<LandingPage />} />
@@ -132,6 +134,7 @@ function App() {
           </Route>
         </Routes>
         <CommandPalette />
+        </TourProvider>
       </BrowserRouter>
       </ToastProvider>
       </LocaleProvider>

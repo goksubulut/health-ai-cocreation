@@ -7,6 +7,7 @@ import { FeedbackWidget } from '@/components/ui/feedback-widget';
 import { Header } from '@/components/ui/header-3';
 import GrainGradientBackground from '@/components/ui/grain-gradient-background';
 import { useLocale } from '@/contexts/locale-context';
+import { AssistantGuide } from '@/components/ui/assistant-guide';
 import {
   clearAuth,
   getAuth,
@@ -93,6 +94,9 @@ function Layout() {
           />
         </div>
       )}
+
+      {/* Product Tour Mascot */}
+      <AssistantGuide />
     </div>
   );
 }
