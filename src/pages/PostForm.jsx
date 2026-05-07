@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
 import { DatePickerField } from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
+import { useLocale } from '@/contexts/locale-context';
 
 const inputClass =
   'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -49,11 +50,13 @@ const STAGE_FROM_API = {
   pre_deployment: 'pre_deployment',
 };
 
-const polishTips = [
-  'Clear title + focused domain increases discoverability.',
-  'Describe concrete outcomes and collaborator responsibilities.',
-  'Use a realistic timeline to improve match confidence.',
-];
+function buildPolishTips(t) {
+  return [
+    t('postListingTip1', 'Clear title + focused domain increases discoverability.'),
+    t('postListingTip2', 'Describe concrete outcomes and collaborator responsibilities.'),
+    t('postListingTip3', 'Use a realistic timeline to improve match confidence.'),
+  ];
+}
 
 function expertiseStringToKey(requiredExpertise) {
   if (!requiredExpertise) return '';
@@ -100,6 +103,8 @@ function PostForm() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLocale();
+  const polishTips = React.useMemo(() => buildPolishTips(t), [t]);
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPost, setLoadingPost] = useState(isEdit);
@@ -256,27 +261,30 @@ function PostForm() {
           throw new Error(msg);
         }
       }
-      toast({ title: isEdit ? 'İlan güncellendi' : 'İlan oluşturuldu', variant: 'success' });
+      toast({
+        title: isEdit ? t('postUpdatedToast', 'Listing updated') : t('postCreatedToast', 'Listing created'),
+        variant: 'success',
+      });
       navigate(getDashboardPathByRole(auth.user.role));
     } catch (err) {
       const msg = err instanceof Error ? err.message : isEdit ? 'Could not update post.' : 'Could not create post.';
       setSubmitError(msg);
-      toast({ title: 'Hata', description: msg, variant: 'error' });
+      toast({ title: t('errorTitle', 'Error'), description: msg, variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const steps = [
-    { n: 1, label: 'Basics' },
-    { n: 2, label: 'Details' },
-    { n: 3, label: 'Logistics' },
+    { n: 1, label: t('postFormStepBasics', 'Basics') },
+    { n: 2, label: t('postFormStepDetails', 'Details') },
+    { n: 3, label: t('postFormStepLogistics', 'Logistics') },
   ];
 
   if (loadingPost) {
     return (
       <div className="wizard-wrapper flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">Loading post…</p>
+        <p className="text-muted-foreground">{t('postFormLoadingPost', 'Loading post…')}</p>
       </div>
     );
   }
@@ -286,7 +294,7 @@ function PostForm() {
       <div className="wizard-wrapper flex min-h-[50vh] flex-col items-center justify-center gap-4">
         <p className="text-destructive">{loadError}</p>
         <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>
-          Go back
+          {t('postFormGoBack', 'Go back')}
         </button>
       </div>
     );
@@ -302,15 +310,19 @@ function PostForm() {
           className="mb-6 overflow-hidden rounded-3xl border border-white/15 bg-black/50 p-6 shadow-[0_14px_60px_rgba(18,10,36,0.35)] backdrop-blur-xl sm:p-8"
         >
           <div className="pointer-events-none absolute" />
-          <p className="hero-eyebrow">{isEdit ? 'Edit project listing' : 'Create project listing'}</p>
+          <p className="hero-eyebrow">
+            {isEdit ? t('postListingEditEyebrow', 'Edit project listing') : t('postListingCreateEyebrow', 'Create project listing')}
+          </p>
           <h1 className="mt-3 font-serif text-3xl leading-tight text-white sm:text-4xl">
-            Shape the collaboration brief
+            {t('postListingHeroTitle1', 'Shape the collaboration brief')}
             <br />
-            <em className="text-[#cab8ff]">that attracts the right people</em>
+            <em className="text-[#cab8ff]">{t('postListingHeroTitle2', 'that attracts the right people')}</em>
           </h1>
           <p className="mt-4 max-w-2xl text-sm text-white/80 sm:text-base">
-            Keep the editorial tone, but be specific: role expectations, stage clarity, and objective outcomes make your
-            project rank better in matching.
+            {t(
+              'postListingHeroDesc',
+              'Keep the editorial tone, but be specific: role expectations, stage clarity, and objective outcomes make your project rank better in matching.'
+            )}
           </p>
           <div className="mt-5 grid gap-2 sm:grid-cols-3">
             {polishTips.map((tip) => (
@@ -376,7 +388,7 @@ function PostForm() {
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
                         <span className="inline-flex items-center gap-2">
                           <Sparkles size={20} className="text-violet-500" />
-                          Project Basics
+                          {t('postFormSectionBasics', 'Project Basics')}
                         </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
@@ -385,13 +397,13 @@ function PostForm() {
                     </div>
                     <div>
                       <label htmlFor="post-title" className={labelClass}>
-                        Project title
+                        {t('postFormTitleLabel', 'Project title')}
                       </label>
                       <input
                         id="post-title"
                         type="text"
                         className={inputClass}
-                        placeholder="e.g. AI-driven cardiac imaging pipeline"
+                        placeholder={t('postFormTitlePlaceholder', 'e.g. AI-driven cardiac imaging pipeline')}
                         required
                         value={formData.title}
                         onChange={(e) =>
@@ -401,13 +413,13 @@ function PostForm() {
                     </div>
                     <div>
                       <label htmlFor="post-area" className={labelClass}>
-                        Study area
+                        {t('postFormDomainLabel', 'Domain / area')}
                       </label>
                       <input
                         id="post-area"
                         type="text"
                         className={inputClass}
-                        placeholder="e.g. Cardiology, Radiology ML"
+                        placeholder={t('postFormDomainPlaceholder', 'e.g. Cardiology, Radiology ML')}
                         required
                         value={formData.area}
                         onChange={(e) =>
@@ -417,13 +429,16 @@ function PostForm() {
                     </div>
                     <div>
                       <label htmlFor="post-desc" className={labelClass}>
-                        Short description & goals
+                        {t('postFormDescriptionLabel', 'Collaboration brief')}
                       </label>
                       <textarea
                         id="post-desc"
                         rows={4}
                         className={`${inputClass} min-h-[120px] resize-y py-3`}
-                        placeholder="What problem are you solving? Who benefits? What do you need from collaborators? (min. 50 characters)"
+                        placeholder={t(
+                          'postFormDescriptionPlaceholder',
+                          'What problem are you solving? Who benefits? What do you need from collaborators? (min. 50 characters)'
+                        )}
                         required
                         minLength={50}
                         value={formData.desc}
@@ -448,16 +463,16 @@ function PostForm() {
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
                         <span className="inline-flex items-center gap-2">
                           <Wand2 size={20} className="text-emerald-500" />
-                          Needs & Collaboration
+                          {t('postFormNeedsTitle', 'Needs & Collaboration')}
                         </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
-                        What kind of expertise are you looking for?
+                        {t('postFormNeedsDesc', 'What kind of expertise are you looking for?')}
                       </p>
                     </div>
                     <div>
                       <label htmlFor="post-expertise" className={labelClass}>
-                        Expertise needed
+                        {t('postFormExpertiseLabel', 'Required expertise')}
                       </label>
                       <select
                         id="post-expertise"
@@ -469,24 +484,24 @@ function PostForm() {
                         }
                       >
                         <option value="" disabled>
-                          Select expertise…
+                          {t('postFormSelectExpertise', 'Select expertise…')}
                         </option>
-                        <option value="ml_engineer">Machine Learning Engineer</option>
-                        <option value="data_scientist">Data Scientist</option>
-                        <option value="surgeon">Surgeon / Clinical Lead</option>
-                        <option value="other">Other</option>
+                        <option value="ml_engineer">{t('postFormExpertiseMl', 'Machine Learning Engineer')}</option>
+                        <option value="data_scientist">{t('postFormExpertiseData', 'Data Scientist')}</option>
+                        <option value="surgeon">{t('postFormExpertiseSurgeon', 'Surgeon / Clinical Lead')}</option>
+                        <option value="other">{t('postFormExpertiseOther', 'Other')}</option>
                       </select>
                     </div>
                     {formData.roleNeeded === 'other' && (
                       <div>
                         <label htmlFor="post-expertise-other" className={labelClass}>
-                          Custom expertise
+                          {t('postFormExpertiseOtherLabel', 'Other expertise')}
                         </label>
                         <input
                           id="post-expertise-other"
                           type="text"
                           className={inputClass}
-                          placeholder="e.g. Biomedical Signal Processing Specialist"
+                          placeholder={t('postFormExpertiseOtherPlaceholder', 'e.g. Biomedical Signal Processing Specialist')}
                           required
                           value={formData.otherExpertise}
                           onChange={(e) =>
@@ -497,7 +512,7 @@ function PostForm() {
                     )}
                     <div>
                       <label htmlFor="post-stage" className={labelClass}>
-                        Project stage
+                        {t('postFormStageLabel', 'Project stage')}
                       </label>
                       <select
                         id="post-stage"
@@ -509,18 +524,18 @@ function PostForm() {
                         }
                       >
                         <option value="" disabled>
-                          Select stage…
+                          {t('postFormSelectStage', 'Select stage…')}
                         </option>
-                        <option value="idea">Idea / concept</option>
-                        <option value="validation">Concept validation</option>
-                        <option value="prototype">Prototype</option>
-                        <option value="pilot">Pilot</option>
-                        <option value="pre_deployment">Pre-deployment</option>
+                        <option value="idea">{t('postFormStageIdea', 'Idea / concept')}</option>
+                        <option value="validation">{t('postFormStageValidation', 'Concept validation')}</option>
+                        <option value="prototype">{t('postFormStagePrototype', 'Prototype')}</option>
+                        <option value="pilot">{t('postFormStagePilot', 'Pilot')}</option>
+                        <option value="pre_deployment">{t('postFormStagePreDeployment', 'Pre-deployment')}</option>
                       </select>
                     </div>
                     <div>
                       <label htmlFor="post-privacy" className={labelClass}>
-                        Privacy level
+                        {t('postFormPrivacyLabel', 'Visibility')}
                       </label>
                       <select
                         id="post-privacy"
@@ -532,11 +547,11 @@ function PostForm() {
                         }
                       >
                         <option value="" disabled>
-                          Select visibility…
+                          {t('postFormSelectVisibility', 'Select visibility…')}
                         </option>
-                        <option value="public">Publicly visible</option>
+                        <option value="public">{t('postFormPrivacyPublic', 'Publicly visible')}</option>
                         <option value="confidential">
-                          Confidential (NDA & meeting)
+                          {t('postFormConfidentialOption', 'Confidential (NDA & meeting)')}
                         </option>
                       </select>
                     </div>
@@ -556,22 +571,22 @@ function PostForm() {
                       <h3 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl">
                         <span className="inline-flex items-center gap-2">
                           <ShieldCheck size={20} className="text-sky-500" />
-                          Final logistics
+                          {t('postFormFinalLogisticsTitle', 'Final logistics')}
                         </span>
                       </h3>
                       <p className="text-sm text-muted-foreground sm:text-base">
-                        Where is this happening and what is the timeline?
+                        {t('postFormFinalLogisticsDesc', 'Where is this happening and what is the timeline?')}
                       </p>
                     </div>
                     <div>
                       <label htmlFor="post-location" className={labelClass}>
-                        City & country
+                        {t('postFormLocationLabel', 'Location')}
                       </label>
                       <input
                         id="post-location"
                         type="text"
                         className={inputClass}
-                        placeholder="e.g. Istanbul, Turkey"
+                        placeholder={t('postFormLocationPlaceholder', 'e.g. Istanbul, Turkey')}
                         required
                         value={formData.location}
                         onChange={(e) =>
@@ -581,12 +596,12 @@ function PostForm() {
                     </div>
                     <div>
                       <label htmlFor="post-expiry" className={labelClass}>
-                        Target end date
+                        {t('postFormExpiryLabel', 'Target date')}
                       </label>
                       <DatePickerField
                         value={formData.expiration}
                         onChange={(date) => setFormData({ ...formData, expiration: date })}
-                        placeholder="Select target date"
+                        placeholder={t('postFormExpiryPlaceholder', 'Select target date')}
                         min={new Date().toISOString().slice(0, 10)}
                       />
                       <input
@@ -612,13 +627,13 @@ function PostForm() {
                   onClick={handlePrev}
                   className="btn-secondary"
                 >
-                  <ArrowLeft size={18} /> Back
+                  <ArrowLeft size={18} /> {t('postFormBack', 'Back')}
                 </button>
               )}
               <div className="min-w-[1rem] flex-1" />
               {step < 3 ? (
                 <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                  Next step <ArrowRight size={18} />
+                  {t('postFormNextStep', 'Next step')} <ArrowRight size={18} />
                 </button>
               ) : (
                 <div className="flex gap-3">
@@ -628,7 +643,7 @@ function PostForm() {
                     disabled={isSubmitting}
                     onClick={() => { submitActionRef.current = 'draft'; }}
                   >
-                    Save as Draft
+                    {t('postFormSaveDraft', 'Save as Draft')}
                   </button>
                   <button
                     type="submit"
@@ -636,7 +651,7 @@ function PostForm() {
                     disabled={isSubmitting}
                     onClick={() => { submitActionRef.current = 'active'; }}
                   >
-                    {isEdit ? 'Save Changes & Publish' : 'Publish'}
+                    {isEdit ? t('postFormSaveChangesPublish', 'Save Changes & Publish') : t('postFormPublish', 'Publish')}
                     {!isSubmitting && <CheckCircle2 size={18} className="ml-1" />}
                   </button>
                 </div>

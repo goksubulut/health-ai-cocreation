@@ -79,9 +79,8 @@ function Board() {
   const [searchParams, setSearchParams] = useSearchParams();
   const auth = getAuth();
   const { toast } = useToast();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
-  const { t } = useLocale();
   const [activeFilter, setActiveFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('');
   const [expertiseFilter, setExpertiseFilter] = useState('');
@@ -249,7 +248,7 @@ function Board() {
             headers: { Authorization: `Bearer ${auth.accessToken}` },
           });
           if (!res.ok) throw new Error();
-          toast({ title: locale === 'tr' ? 'Kayitlardan kaldirildi' : 'Removed from saved', variant: 'info' });
+          toast({ title: t('toastRemovedFromSaved', 'Removed from saved'), variant: 'info' });
         } else {
           const res = await fetch('/api/bookmarks', {
             method: 'POST',
@@ -257,7 +256,7 @@ function Board() {
             body: JSON.stringify({ postId }),
           });
           if (!res.ok) throw new Error();
-          toast({ title: locale === 'tr' ? 'Ilan kaydedildi' : 'Listing saved', variant: 'success' });
+          toast({ title: t('toastListingSaved', 'Listing saved'), variant: 'success' });
         }
       } catch {
         // Revert optimistic update on error
@@ -265,8 +264,8 @@ function Board() {
           isBookmarked ? [...prev, strId] : prev.filter((id) => id !== strId)
         );
         toast({
-          title: locale === 'tr' ? 'Hata' : 'Error',
-          description: locale === 'tr' ? 'Kaydetme islemi basarisiz oldu' : 'Save action failed',
+          title: t('toastSaveFailedTitle', 'Error'),
+          description: t('toastSaveFailedDesc', 'Save action failed'),
           variant: 'error',
         });
       }
@@ -279,27 +278,31 @@ function Board() {
         <div className="hero-mesh" style={{ backgroundImage: 'url("/assets/mesh_2.png")' }}></div>
         <div className="hero-inner">
           <div>
-            <span className="hero-eyebrow">Health AI platform</span>
-            <h1 style={{ marginTop: '16px' }}>Research worth<br/><em>doing together.</em></h1>
-            <p>Browse live clinical-AI collaborations from Mayo, Kaiser, Stanford and 60+ partner institutions. Match scores use your profile and past work.</p>
+            <span className="hero-eyebrow">{t('discoverHeroEyebrow', 'Health AI platform')}</span>
+            <h1 style={{ marginTop: '16px' }}>
+              {t('discoverHeroTitleLine1', 'Research worth')}
+              <br />
+              <em>{t('discoverHeroTitleEm', 'doing together.')}</em>
+            </h1>
+            <p>{t('discoverHeroDesc', 'Browse live clinical-AI collaborations from Mayo, Kaiser, Stanford and 60+ partner institutions. Match scores use your profile and past work.')}</p>
             <div className="hero-ctas">
               {auth?.accessToken ? (
-                <Link to="/post/new" className="btn btn-on-dark">Post a project</Link>
+                <Link to="/post/new" className="btn btn-on-dark">{t('matchPostProject', 'Post a project')}</Link>
               ) : (
-                <Link to="/auth?mode=register" className="btn btn-on-dark">Join network</Link>
+                <Link to="/auth?mode=register" className="btn btn-on-dark">{t('register', 'Register')}</Link>
               )}
-              <Link to="/how-matching-works" className="btn btn-ghost-on-dark">How matching works →</Link>
+              <Link to="/how-matching-works" className="btn btn-ghost-on-dark">{t('discoverHowMatchingCta', 'How matching works →')}</Link>
             </div>
           </div>
           <div className="hero-kpi text-[13px] leading-relaxed">
             <div className="flex-between py-[14px] border-b border-white/12">
-              <span>Live projects</span><span className="hero-kpi-value">{posts.length}</span>
+              <span>{t('discoverKpiLiveProjects', 'Live projects')}</span><span className="hero-kpi-value">{posts.length}</span>
             </div>
             <div className="flex-between py-[14px] border-b border-white/12">
-              <span>Partner institutions</span><span className="hero-kpi-value">64</span>
+              <span>{t('discoverKpiPartnerInstitutions', 'Partner institutions')}</span><span className="hero-kpi-value">64</span>
             </div>
             <div className="flex-between py-[14px]">
-              <span>Matches made this week</span><span className="hero-kpi-value hero-kpi-value-accent">{favoriteListings.length}</span>
+              <span>{t('discoverKpiMatchesThisWeek', 'Matches made this week')}</span><span className="hero-kpi-value hero-kpi-value-accent">{favoriteListings.length}</span>
             </div>
           </div>
         </div>
@@ -332,11 +335,11 @@ function Board() {
                  }
                  setSearchParams(nextParams, { replace: true });
                }}
-               placeholder="Search projects..."
+              placeholder={t('commandPaletteSearchPlaceholder', 'Search pages, find listings…')}
                className="h-9 w-48 rounded-full border bg-background pl-9 pr-3 text-xs"
              />
           </div>
-          <span className="hidden sm:inline text-white/80">Sorted by <strong className="text-white">match score</strong></span>
+          <span className="hidden sm:inline text-white/80">{t('discoverSortedByMatch', 'Sorted by match score')}</span>
         </div>
         )}
       </div>
@@ -344,13 +347,14 @@ function Board() {
       {auth?.accessToken && (
       <div className="filterbar">
         <span className={`filter ${activeFilter === 'All' ? 'active' : ''}`} onClick={() => setActiveFilter('All')}>
-          <span className="pip"></span>Top matches
+          <span className="pip"></span>{t('discoverFilterTopMatches', 'Top matches')}
         </span>
         {filterTags.slice(0, 5).map(tag => (
            <span key={tag} className={`filter ${activeFilter === tag ? 'active' : ''}`} onClick={() => setActiveFilter(tag)}>{tag}</span>
         ))}
         <span className={`filter ${activeFilter === 'Favorites' ? 'active' : ''}`} onClick={() => setActiveFilter('Favorites')}>
-           Saved <Heart size={12} className={`inline ml-1 ${activeFilter === 'Favorites' ? 'fill-current' : ''}`} />
+           {t('discoverFilterSaved', 'Saved')}{' '}
+           <Heart size={12} className={`inline ml-1 ${activeFilter === 'Favorites' ? 'fill-current' : ''}`} />
         </span>
         <span className="filterbar-spacer"></span>
         <span className="sortby">{orderedPosts.length} of {posts.length}</span>
@@ -360,13 +364,13 @@ function Board() {
       <div className="grid-listings mb-10" data-tour="discover-board">
         {!auth?.accessToken ? (
           <div className="col-span-full rounded-2xl border border-border/70 bg-card/70 p-8 text-center">
-            <h3 className="font-serif text-3xl text-foreground">Listings are members-only</h3>
+            <h3 className="font-serif text-3xl text-foreground">{t('discoverMembersOnlyTitle', 'Listings are members-only')}</h3>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-              You can view platform overview publicly, but project listings stay private to protect partner data and collaboration details.
+              {t('discoverMembersOnlyDesc', 'You can view platform overview publicly, but project listings stay private to protect partner data and collaboration details.')}
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/auth?mode=register" className="btn-primary">Create free account</Link>
-              <Link to="/auth?mode=login" className="btn-secondary">Sign in</Link>
+              <Link to="/auth?mode=register" className="btn-primary">{t('discoverCreateFreeAccount', 'Create free account')}</Link>
+              <Link to="/auth?mode=login" className="btn-secondary">{t('signIn', 'Sign in')}</Link>
             </div>
           </div>
         ) : liveLoading ? (

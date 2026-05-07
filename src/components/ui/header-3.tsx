@@ -261,9 +261,9 @@ export function Header({
                   <NavigationMenuTrigger className="bg-transparent text-[13px] font-medium text-muted-foreground h-auto p-0 px-3 hover:bg-transparent hover:text-foreground">{t('help', 'Help')}</NavigationMenuTrigger>
                   <NavigationMenuContent className="bg-background p-2 w-[240px] border border-border/70 rounded-xl shadow-lg">
                     <ul className="grid w-[240px] gap-1 rounded-md bg-popover shadow">
-                      <HelpLink href="/help/faq" title="FAQ" description="Questions & answers." />
-                      <HelpLink href="/help/troubleshooting" title="Issues" description="Troubleshooting." />
-                      <HelpLink href="/help/contact-support" title="Support" description="Contact us." />
+                      <HelpLink href="/help/faq" title={t('navHelpFaqTitle', 'FAQ')} description={t('navHelpFaqDesc', 'Questions & answers.')} />
+                      <HelpLink href="/help/troubleshooting" title={t('navHelpIssuesTitle', 'Issues')} description={t('navHelpIssuesDesc', 'Troubleshooting.')} />
+                      <HelpLink href="/help/contact-support" title={t('navHelpSupportTitle', 'Support')} description={t('navHelpSupportDesc', 'Contact us.')} />
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
@@ -356,16 +356,16 @@ export function Header({
       <MobileMenu open={open} className="flex flex-col gap-3 overflow-y-auto">
         <div className="rounded-xl border border-border/60 bg-card/70 p-2">
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Need Help?
+            {t('mobileNeedHelp', 'Need Help?')}
           </p>
           <MobileLink to="/help/faq" onClick={() => setOpen(false)}>
-            <CircleHelp size={16} /> FAQ
+            <CircleHelp size={16} /> {t('navHelpFaqTitle', 'FAQ')}
           </MobileLink>
           <MobileLink to="/help/troubleshooting" onClick={() => setOpen(false)}>
-            Troubleshooting
+            {t('helpTroubleshootingTitle', 'Troubleshooting')}
           </MobileLink>
           <MobileLink to="/help/contact-support" onClick={() => setOpen(false)}>
-            Contact & Support
+            {t('helpContactSupportTitle', 'Contact & Support')}
           </MobileLink>
         </div>
 
@@ -402,7 +402,7 @@ export function Header({
               onToggleTheme();
             }}
           >
-            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            {theme === 'dark' ? t('themeLightMode', 'Light Mode') : t('themeDarkMode', 'Dark Mode')}
           </button>
         </div>
       </MobileMenu>

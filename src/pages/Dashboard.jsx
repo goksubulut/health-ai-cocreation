@@ -63,7 +63,11 @@ function formatPersonName(u) {
 }
 
 /** @param {Array<Record<string, unknown>>} list */
-function buildMeetingNotifications(list, uid) {
+function interpolate(template, vars) {
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), template);
+}
+
+function buildMeetingNotifications(list, uid, t) {
   if (uid == null) return [];
   const items = [];
   for (const m of list) {
@@ -87,7 +91,10 @@ function buildMeetingNotifications(list, uid) {
           kind: 'scheduled',
           meetingId: m.id,
           at: updatedAt,
-          text: `Your meeting with ${formatPersonName(m.requester)} for "${postTitle}" is scheduled for ${when}.`,
+          text: interpolate(
+            t('dashboardNotifIncomingScheduled', 'Your meeting with {person} for "{post}" is scheduled for {when}.'),
+            { person: formatPersonName(m.requester), post: postTitle, when }
+          ),
         });
       }
     }
@@ -99,7 +106,10 @@ function buildMeetingNotifications(list, uid) {
           kind: 'declined',
           meetingId: m.id,
           at: updatedAt,
-          text: `Your request for "${postTitle}" was declined by ${formatPersonName(m.post_owner)}.`,
+          text: interpolate(
+            t('dashboardNotifOutgoingDeclined', 'Your request for "{post}" was declined by {person}.'),
+            { person: formatPersonName(m.post_owner), post: postTitle }
+          ),
         });
       } else if (m.status === 'accepted') {
         const calendarUrl = m.confirmed_slot
@@ -117,7 +127,10 @@ function buildMeetingNotifications(list, uid) {
           kind: 'accepted',
           meetingId: m.id,
           at: updatedAt,
-          text: `Your request for "${postTitle}" was accepted by ${formatPersonName(m.post_owner)}.`,
+          text: interpolate(
+            t('dashboardNotifOutgoingAccepted', 'Your request for "{post}" was accepted by {person}.'),
+            { person: formatPersonName(m.post_owner), post: postTitle }
+          ),
           calendarUrl,
         });
       } else if (m.status === 'scheduled' && m.confirmed_slot) {
@@ -135,7 +148,10 @@ function buildMeetingNotifications(list, uid) {
           kind: 'scheduled',
           meetingId: m.id,
           at: updatedAt,
-          text: `Your meeting for "${postTitle}" is scheduled for ${when}.`,
+          text: interpolate(
+            t('dashboardNotifOutgoingScheduled', 'Your meeting for "{post}" is scheduled for {when}.'),
+            { post: postTitle, when }
+          ),
           calendarUrl,
         });
       }
@@ -152,7 +168,7 @@ function buildMeetingNotifications(list, uid) {
 function Dashboard() {
   const auth = getAuth();
   const { toast } = useToast();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const role = auth?.user?.role;
   const isHealthcare = role === 'healthcare';
   const canCreatePost = role === 'healthcare' || role === 'engineer';
@@ -257,7 +273,7 @@ function Dashboard() {
           ? list.filter((x) => x.post_owner_id === uid && ['pending', 'accepted', 'scheduled'].includes(x.status)).length
           : 0
       );
-      setNotifications(buildMeetingNotifications(list, uid));
+      setNotifications(buildMeetingNotifications(list, uid, t));
     } catch {
       setMeetingPending(null);
       setIncomingMatchCount(null);
@@ -341,6 +357,10 @@ function Dashboard() {
     return () => window.removeEventListener(ev, sync);
   }, []);
 
+  useEffect(() => {
+    loadMeetingsData();
+  }, [locale]);
+
   const activePosts = useMemo(
     () => posts.filter((p) => p.status === 'active'),
     [posts]
@@ -348,32 +368,32 @@ function Dashboard() {
 
   const stats = [
     {
-      title: isHealthcare ? 'Active Posts' : 'Active Collaborations',
+      title: isHealthcare ? t('dashboardMetricActivePosts', 'Active Posts') : t('dashboardMetricActiveCollaborations', 'Active Collaborations'),
       value: loading ? '…' : String(activePosts.length),
       icon: FileText,
       accent: 'emerald',
-      note: 'Currently live',
+      note: t('dashboardMetricNoteCurrentlyLive', 'Currently live'),
     },
     {
-      title: 'Pending Meetings',
+      title: t('dashboardMetricPendingMeetings', 'Pending Meetings'),
       value: meetingPending === null ? '—' : String(meetingPending),
       icon: Clock,
       accent: 'amber',
-      note: 'Awaiting response',
+      note: t('dashboardMetricNoteAwaitingResponse', 'Awaiting response'),
     },
     {
-      title: 'Inbound Requests',
+      title: t('dashboardMetricInboundRequests', 'Inbound Requests'),
       value: meetingsLoading ? '…' : incomingMatchCount === null ? '—' : String(incomingMatchCount),
       icon: Users,
       accent: 'emerald',
-      note: 'Active pipeline',
+      note: t('dashboardMetricNoteActivePipeline', 'Active pipeline'),
     },
     {
-      title: 'Recommendations',
+      title: t('dashboardMetricRecommendations', 'Recommendations'),
       value: recommendationsLoading ? '…' : String(recommendedProjects.length),
       icon: Sparkles,
       accent: 'emerald',
-      note: 'Ranked by profile fit',
+      note: t('dashboardMetricNoteRankedByProfileFit', 'Ranked by profile fit'),
     },
   ];
 
@@ -425,9 +445,9 @@ function Dashboard() {
 
           <div className="panel">
             <div className="panel-head">
-              <h3>Inbound requests</h3>
+              <h3>{t('dashboardInboundRequestsTitle', 'Inbound requests')}</h3>
               <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">
-                View all requests →
+                {t('dashboardViewAllRequests', 'View all requests →')}
               </Link>
             </div>
             
@@ -448,28 +468,32 @@ function Dashboard() {
                     <div className="req-sub">
                       <span className={`status ${isPending ? 's-pending' : isNda ? 's-nda' : 's-scheduled'} mr-2`}>
                         <span className="pip"></span>
-                        {uStatus}
+                        {isPending
+                          ? t('statusPending', 'Pending')
+                          : isNda
+                            ? t('ndaAccepted', 'NDA / accepted')
+                            : t('statusScheduled', 'Scheduled')}
                       </span>
                       {n.at ? new Date(n.at).toLocaleString() : ''}
                     </div>
                   </div>
                   <div className="req-actions">
-                    <Link to={`/meetings/${n.meetingId}`} className="btn-sm">View details</Link>
+                    <Link to={`/meetings/${n.meetingId}`} className="btn-sm">{t('dashboardViewDetails', 'View details')}</Link>
                   </div>
                 </div>
               );
             })}
             {!meetingsLoading && !notifications.length && (
               <div className="p-6 text-center text-muted-foreground text-sm">
-                No inbound requests yet.
+                {t('dashboardNoInboundRequests', 'No inbound requests yet.')}
               </div>
             )}
           </div>
 
           <div className="panel schedule">
             <div className="flex-between mb-6">
-              <h3 className="font-serif text-[22px] m-0 tracking-[-.01em]">This week</h3>
-              <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">View calendar →</Link>
+              <h3 className="font-serif text-[22px] m-0 tracking-[-.01em]">{t('dashboardThisWeek', 'This week')}</h3>
+              <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">{t('dashboardViewCalendar', 'View calendar →')}</Link>
             </div>
             
             {notifications.filter((n) => n.kind === 'scheduled').slice(0, 3).map((n) => (
@@ -482,12 +506,12 @@ function Dashboard() {
                    <div className="sched-event violet">
                       <div className="sched-time">{new Date(n.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       <div>
-                        <div className="sched-title">Introductory Call</div>
+                        <div className="sched-title">{t('dashboardIntroductoryCall', 'Introductory Call')}</div>
                         <div className="sched-sub">{n.text}</div>
                       </div>
                       {n.calendarUrl && (
                         <a href={n.calendarUrl} target="_blank" rel="noreferrer" className="btn-sm primary" style={{ textDecoration: 'none' }}>
-                          Add to Google Calendar
+                          {t('dashboardAddToGoogleCalendar', 'Add to Google Calendar')}
                         </a>
                       )}
                    </div>
@@ -497,7 +521,7 @@ function Dashboard() {
             
             {!notifications.some((n) => n.kind === 'scheduled') && (
               <div className="text-center text-muted-foreground text-sm py-4">
-                No scheduled intros this week.
+                {t('dashboardNoScheduledIntros', 'No scheduled intros this week.')}
               </div>
             )}
           </div>
@@ -507,7 +531,10 @@ function Dashboard() {
             <div className="panel">
               <div className="panel-head">
                 <h3>{t('savedListings', 'Saved Listings')}</h3>
-                <span className="text-xs text-muted-foreground">{savedPosts.length} ilan</span>
+                <span className="text-xs text-muted-foreground">
+                  {savedPosts.length}{' '}
+                  {savedPosts.length === 1 ? t('listingOne', 'listing') : t('listingMany', 'listings')}
+                </span>
               </div>
               {savedPosts.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">

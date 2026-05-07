@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Send, ShieldCheck, Clock, CalendarCheck, XCircle, CheckCircle2 } from 'lucide-react';
+import { useLocale } from '@/contexts/locale-context';
 
 /*
  * MeetingTimeline
@@ -11,44 +12,53 @@ import { Send, ShieldCheck, Clock, CalendarCheck, XCircle, CheckCircle2 } from '
  *  side    — 'requester' | 'owner'  (hangi taraf görüntülüyor)
  */
 
-const STEP_DEFS = [
-  {
-    id: 'requested',
-    label: 'Toplantı İsteği Gönderildi',
-    icon: <Send size={14} />,
-    activeStatuses: ['pending', 'accepted', 'declined', 'scheduled', 'cancelled'],
-  },
-  {
-    id: 'nda',
-    label: 'NDA Kabul Edildi',
-    icon: <ShieldCheck size={14} />,
-    activeStatuses: ['pending', 'accepted', 'declined', 'scheduled', 'cancelled'],
-    condition: (m) => m.nda_accepted,
-    optional: true,
-  },
-  {
-    id: 'accepted',
-    label: 'İstek Kabul Edildi',
-    icon: <CheckCircle2 size={14} />,
-    activeStatuses: ['accepted', 'scheduled'],
-    errorStatuses: ['declined'],
-    errorLabel: 'İstek Reddedildi',
-    errorIcon: <XCircle size={14} />,
-  },
-  {
-    id: 'slots',
-    label: 'Zaman Dilimi Önerildi',
-    icon: <Clock size={14} />,
-    activeStatuses: ['accepted', 'scheduled'],
-    condition: (m) => (m.time_slots?.length ?? 0) > 0,
-  },
-  {
-    id: 'scheduled',
-    label: 'Toplantı Zamanlandı',
-    icon: <CalendarCheck size={14} />,
-    activeStatuses: ['scheduled'],
-  },
-];
+function dateLocaleTag(loc) {
+  if (loc === 'tr') return 'tr-TR';
+  if (loc === 'pt') return 'pt-BR';
+  if (loc === 'es') return 'es-ES';
+  return 'en-US';
+}
+
+function buildStepDefs(t) {
+  return [
+    {
+      id: 'requested',
+      label: t('meetingStepRequested', 'Meeting request sent'),
+      icon: <Send size={14} />,
+      activeStatuses: ['pending', 'accepted', 'declined', 'scheduled', 'cancelled'],
+    },
+    {
+      id: 'nda',
+      label: t('meetingStepNda', 'NDA accepted'),
+      icon: <ShieldCheck size={14} />,
+      activeStatuses: ['pending', 'accepted', 'declined', 'scheduled', 'cancelled'],
+      condition: (m) => m.nda_accepted,
+      optional: true,
+    },
+    {
+      id: 'accepted',
+      label: t('meetingStepAccepted', 'Request accepted'),
+      icon: <CheckCircle2 size={14} />,
+      activeStatuses: ['accepted', 'scheduled'],
+      errorStatuses: ['declined'],
+      errorLabel: t('meetingStepRequestDeclined', 'Request declined'),
+      errorIcon: <XCircle size={14} />,
+    },
+    {
+      id: 'slots',
+      label: t('meetingStepSlots', 'Time slots suggested'),
+      icon: <Clock size={14} />,
+      activeStatuses: ['accepted', 'scheduled'],
+      condition: (m) => (m.time_slots?.length ?? 0) > 0,
+    },
+    {
+      id: 'scheduled',
+      label: t('meetingStepScheduled', 'Meeting scheduled'),
+      icon: <CalendarCheck size={14} />,
+      activeStatuses: ['scheduled'],
+    },
+  ];
+}
 
 function getStepState(step, meeting) {
   const s = meeting.status;
@@ -97,7 +107,12 @@ function StepDot({ state }) {
 }
 
 export default function MeetingTimeline({ meeting, className = '' }) {
+  const { locale, t } = useLocale();
+  const STEP_DEFS = useMemo(() => buildStepDefs(t), [locale, t]);
+
   if (!meeting) return null;
+
+  const intlLocale = dateLocaleTag(locale);
 
   const visibleSteps = STEP_DEFS.filter(step => {
     const state = getStepState(step, meeting);
@@ -117,10 +132,10 @@ export default function MeetingTimeline({ meeting, className = '' }) {
         // Timestamp hint
         let hint = null;
         if (step.id === 'requested' && meeting.created_at) {
-          hint = new Date(meeting.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+          hint = new Date(meeting.created_at).toLocaleDateString(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' });
         }
         if (step.id === 'scheduled' && meeting.confirmed_slot) {
-          hint = new Date(meeting.confirmed_slot).toLocaleString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          hint = new Date(meeting.confirmed_slot).toLocaleString(intlLocale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
         return (

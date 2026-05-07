@@ -2,41 +2,30 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { BrainCircuit, ShieldCheck, Sparkles, Target, Users, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLocale } from '@/contexts/locale-context';
 
-const steps = [
-  {
-    icon: BrainCircuit,
-    title: 'Profile intelligence',
-    description:
-      'Your role, expertise keywords, and posting behavior are parsed into a structured collaboration profile.',
-  },
-  {
-    icon: Target,
-    title: 'Semantic fit scoring',
-    description:
-      'Project goals and role requirements are compared against your profile using weighted relevance signals.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Trust and readiness',
-    description:
-      'Confidentiality level, timeline realism, and collaboration readiness increase or decrease final match confidence.',
-  },
-  {
-    icon: Workflow,
-    title: 'Continuous learning',
-    description:
-      'When you save, open, or request meetings, the model calibrates future ranking quality for your feed.',
-  },
-];
+function buildSteps(t) {
+  return [
+    { icon: BrainCircuit, title: t('matchStep1Title', 'Profile intelligence'), description: t('matchStep1Desc', 'Your role, expertise keywords, and posting behavior are parsed into a structured collaboration profile.') },
+    { icon: Target, title: t('matchStep2Title', 'Semantic fit scoring'), description: t('matchStep2Desc', 'Project goals and role requirements are compared against your profile using weighted relevance signals.') },
+    { icon: ShieldCheck, title: t('matchStep3Title', 'Trust and readiness'), description: t('matchStep3Desc', 'Confidentiality level, timeline realism, and collaboration readiness increase or decrease final match confidence.') },
+    { icon: Workflow, title: t('matchStep4Title', 'Continuous learning'), description: t('matchStep4Desc', 'When you save, open, or request meetings, the model calibrates future ranking quality for your feed.') },
+  ];
+}
 
-const principles = [
-  { label: 'Explainable matching', value: 'Transparent factors, not black-box randomness.' },
-  { label: 'Context-aware', value: 'Different stages need different collaborator archetypes.' },
-  { label: 'Human-first ranking', value: 'Scores guide discovery; your final decision leads.' },
-];
+function buildPrinciples(t) {
+  return [
+    { label: t('matchPrinciple1Label', 'Explainable matching'), value: t('matchPrinciple1Value', 'Transparent factors, not black-box randomness.') },
+    { label: t('matchPrinciple2Label', 'Context-aware'), value: t('matchPrinciple2Value', 'Different stages need different collaborator archetypes.') },
+    { label: t('matchPrinciple3Label', 'Human-first ranking'), value: t('matchPrinciple3Value', 'Scores guide discovery; your final decision leads.') },
+  ];
+}
 
 function HowMatchingWorks() {
+  const { t, locale } = useLocale();
+  const steps = React.useMemo(() => buildSteps(t), [t, locale]);
+  const principles = React.useMemo(() => buildPrinciples(t), [t, locale]);
+
   return (
     <section className="page relative pb-16">
       <div className="relative overflow-hidden rounded-[28px] border border-white/15 bg-black/50 p-8 shadow-[0_20px_80px_rgba(20,12,40,0.35)] backdrop-blur-xl md:p-12">
@@ -48,7 +37,7 @@ function HowMatchingWorks() {
           transition={{ duration: 0.45 }}
           className="hero-eyebrow"
         >
-          Matching tutorial
+          {t('matchTutorialEyebrow', 'Matching tutorial')}
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 14 }}
@@ -56,9 +45,9 @@ function HowMatchingWorks() {
           transition={{ duration: 0.5, delay: 0.08 }}
           className="mt-3 font-serif text-4xl leading-tight text-white md:text-5xl"
         >
-          How the platform decides
+          {t('matchTutorialTitle1', 'How the platform decides')}
           <br />
-          <em className="text-[#cab8ff]">what is right for you</em>
+          <em className="text-[#cab8ff]">{t('matchTutorialTitleEm', 'what is right for you')}</em>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 14 }}
@@ -66,8 +55,10 @@ function HowMatchingWorks() {
           transition={{ duration: 0.5, delay: 0.14 }}
           className="mt-5 max-w-3xl text-sm text-white/80 md:text-base"
         >
-          Match score is a confidence signal that combines expertise alignment, project stage needs, collaboration intent,
-          and quality-of-fit patterns from your interactions. It is optimized for discoverability and practical outcomes.
+          {t(
+            'matchTutorialDesc',
+            'Match score is a confidence signal that combines expertise alignment, project stage needs, collaboration intent, and quality-of-fit patterns from your interactions. It is optimized for discoverability and practical outcomes.'
+          )}
         </motion.p>
       </div>
 
@@ -112,10 +103,10 @@ function HowMatchingWorks() {
 
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Link to="/board" className="btn btn-primary">
-          <Users size={16} /> Go to Discover
+          <Users size={16} /> {t('matchGoToDiscover', 'Go to Discover')}
         </Link>
         <Link to="/post/new" className="btn btn-ghost">
-          Post a project
+          {t('matchPostProject', 'Post a project')}
         </Link>
       </div>
     </section>

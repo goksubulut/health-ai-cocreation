@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getDashboardPathByRole, setAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/toast';
+import { useLocale } from '@/contexts/locale-context';
 
 const meshBackground = "/assets/mesh_5.png";
 
@@ -27,6 +28,7 @@ function AuthPage() {
   const mode = searchParams.get('mode') || 'login';
   const isLogin = mode === 'login';
   const { toast } = useToast();
+  const { t } = useLocale();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -114,13 +116,13 @@ function AuthPage() {
 
         const infoMsg = data.message || 'Registration successful. Please verify your email, then sign in.';
         setInfo(infoMsg);
-        toast({ title: 'Kayıt başarılı', description: infoMsg, variant: 'success' });
+      toast({ title: t('authRegisterSuccessTitle', 'Registration successful'), description: infoMsg, variant: 'success' });
         setSearchParams({ mode: 'login' });
         setFormData({ email: formData.email, password: '', firstName: '', lastName: '', role: '' });
       }
     } catch (submitError) {
       setError(submitError.message);
-      toast({ title: 'Hata', description: submitError.message, variant: 'error' });
+    toast({ title: t('errorTitle', 'Error'), description: submitError.message, variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -236,7 +238,7 @@ function AuthPage() {
                       value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
                       className="w-full bg-transparent border-b-2 border-border/50 focus:border-primary px-2 py-3 text-lg outline-none transition-colors appearance-none font-medium text-foreground cursor-pointer"
                     >
-                      <option value="" disabled className="bg-background text-muted-foreground">Select your division...</option>
+                      <option value="" disabled className="bg-background text-muted-foreground">{t('authDivisionPlaceholder', 'Select your division…')}</option>
                       <option value="engineer" className="bg-background text-foreground">Hardware / ML Engineer</option>
                       <option value="healthcare" className="bg-background text-foreground">Healthcare Professional</option>
                     </select>

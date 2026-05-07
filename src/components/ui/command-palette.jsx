@@ -8,16 +8,19 @@ import {
   PlusCircle, Stethoscope, Cpu,
 } from 'lucide-react';
 import { getAuth, getDashboardPathByRole } from '@/lib/auth';
+import { useLocale } from '@/contexts/locale-context';
 
-const STATIC_COMMANDS = [
-  { id: 'board',        label: 'İlan Panosu',         icon: <FileText size={15} />,       path: '/board',          group: 'Sayfalar' },
-  { id: 'new-post',     label: 'Yeni İlan Oluştur',   icon: <PlusCircle size={15} />,     path: '/post/new',       group: 'Eylemler' },
-  { id: 'meetings',     label: 'Toplantılarım',        icon: <CalendarCheck size={15} />,  path: '/meetings',       group: 'Sayfalar' },
-  { id: 'profile',      label: 'Profilim',             icon: <User size={15} />,           path: '/profile',        group: 'Sayfalar' },
-  { id: 'how-matching', label: 'Eşleştirme Nasıl Çalışır?', icon: <Stethoscope size={15} />, path: '/how-matching-works', group: 'Yardım' },
-  { id: 'faq',          label: 'Sık Sorulan Sorular', icon: <HelpCircle size={15} />,     path: '/help/faq',       group: 'Yardım' },
-  { id: 'contact',      label: 'Destek Al',            icon: <Settings size={15} />,       path: '/help/contact-support', group: 'Yardım' },
-];
+function buildStaticCommands(t) {
+  return [
+    { id: 'board', label: t('navBoard', 'Listings board'), icon: <FileText size={15} />, path: '/board', group: t('commandPalettePagesGroup', 'Pages') },
+    { id: 'new-post', label: t('navNewPost', 'Create listing'), icon: <PlusCircle size={15} />, path: '/post/new', group: t('commandPaletteActionsGroup', 'Actions') },
+    { id: 'meetings', label: t('navMeetings', 'My meetings'), icon: <CalendarCheck size={15} />, path: '/meetings', group: t('commandPalettePagesGroup', 'Pages') },
+    { id: 'profile', label: t('navProfile', 'My profile'), icon: <User size={15} />, path: '/profile', group: t('commandPalettePagesGroup', 'Pages') },
+    { id: 'how-matching', label: t('navHowMatchingWorks', 'How matching works'), icon: <Stethoscope size={15} />, path: '/how-matching-works', group: t('commandPaletteHelpGroup', 'Help') },
+    { id: 'faq', label: t('navFaq', 'Frequently asked questions'), icon: <HelpCircle size={15} />, path: '/help/faq', group: t('commandPaletteHelpGroup', 'Help') },
+    { id: 'contact', label: t('navSupport', 'Get support'), icon: <Settings size={15} />, path: '/help/contact-support', group: t('commandPaletteHelpGroup', 'Help') },
+  ];
+}
 
 function normalize(s) {
   return String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '');
@@ -45,6 +48,7 @@ export default function CommandPalette() {
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const auth = getAuth();
+  const { t, locale } = useLocale();
 
   // ⌘K / Ctrl+K listener
   useEffect(() => {
@@ -68,13 +72,19 @@ export default function CommandPalette() {
   }, [open]);
 
   const allCommands = React.useMemo(() => {
-    const cmds = [...STATIC_COMMANDS];
+    const cmds = [...buildStaticCommands(t)];
     if (auth) {
       const dashPath = getDashboardPathByRole(auth.user.role);
-      cmds.unshift({ id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} />, path: dashPath, group: 'Sayfalar' });
+      cmds.unshift({
+        id: 'dashboard',
+        label: t('dashboard', 'Dashboard'),
+        icon: <LayoutDashboard size={15} />,
+        path: dashPath,
+        group: t('commandPalettePagesGroup', 'Pages'),
+      });
     }
     return cmds;
-  }, [auth]);
+  }, [auth, locale, t]);
 
   const filtered = React.useMemo(() => {
     if (!query.trim()) return allCommands;
@@ -158,7 +168,7 @@ export default function CommandPalette() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={handleKey}
-                placeholder="Sayfa ara, ilan bul..."
+                placeholder={t('commandPaletteSearchPlaceholder', 'Search pages, find listings…')}
                 style={{
                   flex: 1, background: 'none', border: 'none', outline: 'none',
                   fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--fg)',
@@ -175,7 +185,7 @@ export default function CommandPalette() {
             <div style={{ maxHeight: '360px', overflowY: 'auto', padding: '8px' }}>
               {flatFiltered.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 16px', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--fg-subtle)' }}>
-                  Sonuç bulunamadı
+                  {t('commandPaletteNoResults', 'No results found')}
                 </div>
               ) : (
                 Object.entries(groups).map(([group, items]) => (

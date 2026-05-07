@@ -104,7 +104,7 @@ function Profile() {
 
   const auth = getAuth();
   const { toast } = useToast();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const token = auth?.accessToken;
 
   // Field refs for ProfileCompletion onFieldClick
@@ -424,11 +424,11 @@ function Profile() {
         <div className="profile-hero-inner">
           <div className="profile-avatar flex-shrink-0">{initials || 'US'}</div>
           <div className="profile-name">
-            <h1>{loadingProfile ? 'Loading...' : (displayName || 'Profile')}</h1>
+            <h1>{loadingProfile ? (locale === 'tr' ? 'Yükleniyor...' : 'Loading...') : (displayName || (locale === 'tr' ? 'Profil' : 'Profile'))}</h1>
             <div className="meta">
-              <span>{profile?.institution || 'Institution'}</span><span className="dot"></span>
-              <span>{profile?.expertise || 'Role'}</span><span className="dot"></span>
-              <span>{profile?.city || 'Location'}</span>
+              <span>{profile?.institution || (locale === 'tr' ? 'Kurum' : 'Institution')}</span><span className="dot"></span>
+              <span>{profile?.expertise || (locale === 'tr' ? 'Rol' : 'Role')}</span><span className="dot"></span>
+              <span>{profile?.city || (locale === 'tr' ? 'Konum' : 'Location')}</span>
             </div>
           </div>
           <div className="profile-actions">
@@ -436,13 +436,13 @@ function Profile() {
               onClick={() => setSearchParams({ tab: 'settings' })}
               className={`btn flex-1 ${tab === 'settings' ? 'btn-on-dark' : 'btn-ghost-on-dark'}`}
             >
-              Edit profile
+              {t('profileEditProfile', 'Edit profile')}
             </button>
             <button
               onClick={() => setSearchParams({ tab: 'posts' })}
               className={`btn flex-1 ${tab === 'posts' ? 'btn-on-dark' : 'btn-ghost-on-dark'}`}
             >
-              Post history
+              {t('profilePostHistory', 'Post history')}
             </button>
           </div>
         </div>
@@ -451,18 +451,18 @@ function Profile() {
       <div className="profile-body">
         <div className="space-y-6">
             <section className="profile-about">
-              <h2>About</h2>
+              <h2>{t('profileAbout', 'About')}</h2>
               <p>
-                Keep your institution, location, and expertise updated so matching and recommendations can rank relevant collaboration opportunities.
+                {t('profileAboutDesc', 'Keep your institution, location, and expertise updated so matching and recommendations can rank relevant collaboration opportunities.')}
               </p>
               <div className="expertise-grid">
                 {expertiseItems.length ? expertiseItems.map((item) => (
                   <div key={item} className="expertise">
                     <div className="name">{item}</div>
-                    <div className="years">Expertise area</div>
+                    <div className="years">{t('profileExpertiseArea', 'Expertise area')}</div>
                   </div>
                 )) : (
-                  <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">No expertise set yet.</p>
+                  <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">{t('profileNoExpertise', 'No expertise set yet.')}</p>
                 )}
               </div>
             </section>
@@ -492,9 +492,9 @@ function Profile() {
                   <Settings size={22} />
                 </div>
                 <div>
-                  <h2 className="font-serif text-xl">Base information</h2>
+                  <h2 className="font-serif text-xl">{locale === 'tr' ? 'Temel bilgiler' : 'Base information'}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Name and affiliation (email cannot be changed here).
+                    {locale === 'tr' ? 'İsim ve kurum bilgisi (e-posta burada değiştirilemez).' : 'Name and affiliation (email cannot be changed here).'}
                   </p>
                 </div>
               </div>
@@ -503,7 +503,7 @@ function Profile() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      First name
+                      {locale === 'tr' ? 'Ad' : 'First name'}
                     </label>
                     <input
                       ref={fieldRefs.firstName}
@@ -516,7 +516,7 @@ function Profile() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Last name
+                      {locale === 'tr' ? 'Soyad' : 'Last name'}
                     </label>
                     <input
                       ref={fieldRefs.lastName}
@@ -530,7 +530,7 @@ function Profile() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Institution
+                    {locale === 'tr' ? 'Kurum' : 'Institution'}
                   </label>
                   <input
                     ref={fieldRefs.institution}
@@ -542,7 +542,7 @@ function Profile() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      City
+                      {locale === 'tr' ? 'Şehir' : 'City'}
                     </label>
                     <input
                       ref={fieldRefs.city}
@@ -553,7 +553,7 @@ function Profile() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Country
+                      {locale === 'tr' ? 'Ülke' : 'Country'}
                     </label>
                     <input
                       ref={fieldRefs.country}
@@ -565,7 +565,7 @@ function Profile() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Expertise
+                    {locale === 'tr' ? 'Uzmanlık' : 'Expertise'}
                   </label>
                   <input
                     ref={fieldRefs.expertise}
@@ -576,7 +576,7 @@ function Profile() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button type="submit" className="btn-primary" disabled={saving || loadingProfile}>
-                    {saving ? 'Saving…' : 'Save changes'}
+                    {saving ? (locale === 'tr' ? 'Kaydediliyor…' : 'Saving…') : (locale === 'tr' ? 'Değişiklikleri kaydet' : 'Save changes')}
                   </button>
                   {saveMsg && (
                     <span className="text-sm text-emerald-600 dark:text-emerald-400">{saveMsg}</span>
@@ -591,10 +591,11 @@ function Profile() {
                   <Lock size={22} />
                 </div>
                 <div>
-                  <h2 className="font-serif text-xl">Password</h2>
+                  <h2 className="font-serif text-xl">{locale === 'tr' ? 'Şifre' : 'Password'}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Use at least 8 characters, including one uppercase letter and one digit. New password cannot match
-                    your current password.
+                    {locale === 'tr'
+                      ? 'En az 8 karakter kullanın; bir büyük harf ve bir rakam içermeli. Yeni şifre mevcut şifrenizle aynı olamaz.'
+                      : 'Use at least 8 characters, including one uppercase letter and one digit. New password cannot match your current password.'}
                   </p>
                 </div>
               </div>
@@ -602,7 +603,7 @@ function Profile() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Current password
+                    {locale === 'tr' ? 'Mevcut şifre' : 'Current password'}
                   </label>
                   <input
                     type="password"
@@ -617,7 +618,7 @@ function Profile() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    New password
+                    {locale === 'tr' ? 'Yeni şifre' : 'New password'}
                   </label>
                   <input
                     type="password"
@@ -632,7 +633,7 @@ function Profile() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Confirm new password
+                    {locale === 'tr' ? 'Yeni şifreyi doğrula' : 'Confirm new password'}
                   </label>
                   <input
                     type="password"
@@ -659,7 +660,7 @@ function Profile() {
                     disabled={pwdSaving || loadingProfile}
                     onClick={triggerChangePasswordConfirm}
                   >
-                    {pwdSaving ? 'Updating…' : 'Change password'}
+                    {pwdSaving ? (locale === 'tr' ? 'Güncelleniyor…' : 'Updating…') : (locale === 'tr' ? 'Şifreyi değiştir' : 'Change password')}
                   </button>
                   {pwdSuccessMsg && (
                     <span className="text-sm text-emerald-600 dark:text-emerald-400">{pwdSuccessMsg}</span>
@@ -674,16 +675,16 @@ function Profile() {
                   <ShieldCheck size={22} />
                 </div>
                 <div>
-                  <h2 className="font-serif text-xl">GDPR & data</h2>
+                  <h2 className="font-serif text-xl">{locale === 'tr' ? 'KVKK/GDPR ve veriler' : 'GDPR & data'}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Export or delete your account data.
+                    {locale === 'tr' ? 'Hesap verilerinizi dışa aktarın veya silin.' : 'Export or delete your account data.'}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={handleExport}>
-                    <DownloadCloud size={18} /> Export my data
+                    <DownloadCloud size={18} /> {locale === 'tr' ? 'Verilerimi dışa aktar' : 'Export my data'}
                   </button>
                   <span className="relative inline-flex shrink-0">
                     <HelpCircle
@@ -698,9 +699,9 @@ function Profile() {
                       id="export-data-tooltip"
                       className="pointer-events-none invisible absolute left-1/2 top-full z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-card px-3 py-2 text-left text-xs leading-relaxed text-card-foreground shadow-lg opacity-0 transition-opacity peer-hover:visible peer-hover:opacity-100 peer-focus-visible:visible peer-focus-visible:opacity-100"
                     >
-                      Download a PDF that bundles your profile, your posts, meeting requests (incoming and outgoing),
-                      and NDA-related records. Click &quot;Export my data&quot; and your browser will save the file—same as
-                      any other download.
+                      {locale === 'tr'
+                        ? 'Profilinizi, ilanlarınızı, toplantı taleplerini (gelen/giden) ve NDA kayıtlarını içeren bir PDF indirir. "Verilerimi dışa aktar" seçeneğine tıklayınca dosya tarayıcıdan normal bir indirme gibi kaydedilir.'
+                        : 'Download a PDF that bundles your profile, your posts, meeting requests (incoming and outgoing), and NDA-related records. Click "Export my data" and your browser will save the file—same as any other download.'}
                     </span>
                   </span>
                 </div>
@@ -709,7 +710,7 @@ function Profile() {
                   className="btn-primary inline-flex w-fit shrink-0 items-center gap-2 self-start bg-destructive text-destructive-foreground hover:opacity-90 sm:self-center"
                   onClick={triggerDeleteAccount}
                 >
-                  <UserX size={18} /> Delete account
+                  <UserX size={18} /> {locale === 'tr' ? 'Hesabı sil' : 'Delete account'}
                 </button>
               </div>
             </section>
@@ -721,22 +722,22 @@ function Profile() {
             <div className="mb-6 flex items-center gap-2">
               <FileText size={20} className="text-primary" />
               <div>
-                <h2 className="font-serif text-xl">All your posts</h2>
+                <h2 className="font-serif text-xl">{t('profileAllPosts', 'All your posts')}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Active and inactive listings (draft, scheduled, closed, expired).
+                  {t('profilePostsDesc', 'Active and inactive listings (draft, scheduled, closed, expired).')}
                 </p>
               </div>
             </div>
 
             {loadingPosts ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="animate-spin" size={16} /> Loading posts…
+                <Loader2 className="animate-spin" size={16} /> {locale === 'tr' ? 'İlanlar yükleniyor…' : 'Loading posts…'}
               </p>
             ) : posts.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No posts yet.{' '}
+                {locale === 'tr' ? 'Henüz ilan yok.' : 'No posts yet.'}{' '}
                 <Link to="/post/new" className="text-primary underline">
-                  Create a post
+                  {locale === 'tr' ? 'İlan oluştur' : 'Create a post'}
                 </Link>
                 .
               </p>
@@ -757,7 +758,19 @@ function Profile() {
                                 STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'
                               }`}
                             >
-                              {STATUS_LABELS[p.status] || p.status}
+                              {p.status === 'draft'
+                                ? t('statusDraft', 'Draft')
+                                : p.status === 'active'
+                                  ? t('statusActive', 'Active')
+                                  : p.status === 'meeting_scheduled'
+                                    ? t('statusScheduled', 'Scheduled')
+                                    : p.status === 'partner_found'
+                                      ? t('statusPartnerFound', 'Partner Found')
+                                      : p.status === 'expired'
+                                        ? t('statusExpired', 'Expired')
+                                        : p.status === 'removed_by_admin'
+                                          ? t('statusRemoved', 'Removed')
+                                          : p.status}
                             </span>
                             {p.domain && (
                               <span className="text-xs text-muted-foreground truncate">{p.domain}</span>
@@ -770,12 +783,12 @@ function Profile() {
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             {p.project_stage && (
                               <span>
-                                Stage: {STAGE_LABELS[p.project_stage] || p.project_stage}
+                                {locale === 'tr' ? 'Aşama' : 'Stage'}: {STAGE_LABELS[p.project_stage] || p.project_stage}
                               </span>
                             )}
                             {p.expiry_date && (
                               <span>
-                                · {p.status === 'expired' ? 'Expired' : 'Expires'} {p.expiry_date}
+                                · {p.status === 'expired' ? (locale === 'tr' ? 'Süresi doldu' : 'Expired') : (locale === 'tr' ? 'Bitiş' : 'Expires')} {p.expiry_date}
                               </span>
                             )}
                             <ArrowUpRight
@@ -791,21 +804,21 @@ function Profile() {
                               onClick={() => triggerMarkPartnerFound(p.id)}
                               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-400 transition-colors hover:bg-purple-500/20"
                             >
-                              <Users size={14} /> Mark as Partner Found
+                              <Users size={14} /> {locale === 'tr' ? 'Partner bulundu olarak işaretle' : 'Mark as Partner Found'}
                             </button>
                           )}
                           <Link
                             to={`/post/${p.id}/edit`}
                             className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                           >
-                            <Pencil size={14} /> Edit
+                            <Pencil size={14} /> {t('profileBtnEdit', 'Edit')}
                           </Link>
                           <button
                             type="button"
                             onClick={() => triggerDeletePost(p.id)}
                             className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
                           >
-                            <Trash2 size={14} /> Delete
+                            <Trash2 size={14} /> {t('profileBtnDelete', 'Delete')}
                           </button>
                         </div>
                       </div>
@@ -820,17 +833,17 @@ function Profile() {
 
         <div className="profile-side">
           <div className="side-card">
-            <h3>At a glance</h3>
+            <h3>{locale === 'tr' ? 'Genel bakış' : 'At a glance'}</h3>
             <div>
-              <div className="stat-row"><span className="k">Email Address</span><span className="v">{profile?.email || '—'}</span></div>
-              <div className="stat-row"><span className="k">Active posts</span><span className="v">{posts.filter((p) => p.status === 'active').length}</span></div>
-              <div className="stat-row"><span className="k">Total projects</span><span className="v">{posts.length}</span></div>
-              <div className="stat-row"><span className="k">Member since</span><span className="v">{profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '—'}</span></div>
+              <div className="stat-row"><span className="k">{locale === 'tr' ? 'E-posta' : 'Email Address'}</span><span className="v">{profile?.email || '—'}</span></div>
+              <div className="stat-row"><span className="k">{locale === 'tr' ? 'Aktif ilanlar' : 'Active posts'}</span><span className="v">{posts.filter((p) => p.status === 'active').length}</span></div>
+              <div className="stat-row"><span className="k">{locale === 'tr' ? 'Toplam proje' : 'Total projects'}</span><span className="v">{posts.length}</span></div>
+              <div className="stat-row"><span className="k">{locale === 'tr' ? 'Üyelik yılı' : 'Member since'}</span><span className="v">{profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '—'}</span></div>
             </div>
           </div>
 
           <div className="side-card">
-            <h3>Recent publications</h3>
+            <h3>{locale === 'tr' ? 'Son yayınlar' : 'Recent publications'}</h3>
             <div>
               {publications.map((item, idx) => (
                 <div key={item} className="pub">
@@ -870,7 +883,7 @@ function Profile() {
                 <div className="mb-6">
                   <input
                     type="password"
-                    placeholder="Enter your password..."
+                    placeholder={locale === 'tr' ? 'Şifreni gir...' : 'Enter your password...'}
                     className={inputClass}
                     value={modalConfig.inputValue}
                     onChange={(e) => setModalConfig({ ...modalConfig, inputValue: e.target.value })}

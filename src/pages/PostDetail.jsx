@@ -17,6 +17,7 @@ import { boardListings } from '@/lib/showcaseListings';
 import MatchScoreRing from '@/components/ui/match-score-ring';
 import { calculateProjectMatchScore } from '@/lib/matchScore';
 import { useToast } from '@/components/ui/toast';
+import { useLocale } from '@/contexts/locale-context';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -96,6 +97,7 @@ function PostDetail() {
   const [activeRequestStatus, setActiveRequestStatus] = useState('');
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { toast } = useToast();
+  const { t } = useLocale();
   const mockSource = boardListings.find((item) => String(item.id) === String(id)) || null;
   const isMockPost = Boolean(mockSource);
 
@@ -164,18 +166,18 @@ function PostDetail() {
           body: JSON.stringify({ postId: parseInt(id, 10) }),
         });
         if (!res.ok) throw new Error();
-        toast({ title: 'İlan kaydedildi', variant: 'success' });
+        toast({ title: t('toastListingSaved', 'Listing saved'), variant: 'success' });
       } else {
         const res = await fetch(`/api/bookmarks/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${auth.accessToken}` },
         });
         if (!res.ok) throw new Error();
-        toast({ title: 'Kaydedilenlerden çıkarıldı', variant: 'info' });
+        toast({ title: t('toastRemovedFromSaved', 'Removed from saved'), variant: 'info' });
       }
     } catch {
       setIsBookmarked(!next); // revert
-      toast({ title: 'Hata', description: 'Kaydetme işlemi başarısız', variant: 'error' });
+      toast({ title: t('toastSaveFailedTitle', 'Error'), description: t('toastSaveFailedDesc', 'Save action failed'), variant: 'error' });
     }
   };
 
@@ -725,7 +727,7 @@ function PostDetail() {
                   </>
                 ) : (
                   <>
-                    Transmit proposal <Send size={16} />
+                    {t('postDetailTransmitProposal', 'Transmit proposal')} <Send size={16} />
                   </>
                 )}
               </button>

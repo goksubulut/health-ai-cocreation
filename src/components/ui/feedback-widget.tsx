@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import * as React from 'react';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/contexts/locale-context';
 
 const RATING_ITEMS = [1, 2, 3, 4, 5];
 
@@ -13,6 +14,7 @@ interface FeedbackWidgetProps {
 }
 
 export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetProps) {
+  const { t } = useLocale();
   const [rating, setRating] = React.useState<number | null>(null);
   const [message, setMessage] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -36,9 +38,9 @@ export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetP
   return (
     <div className={cn('w-full max-w-[420px] rounded-2xl border border-border/70 bg-card p-4 shadow-2xl', className)}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Share Feedback</p>
+        <p className="text-sm font-semibold text-foreground">{t('feedbackTitle', 'Share Feedback')}</p>
         <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">
-          Close
+          {t('feedbackClose', 'Close')}
         </button>
       </div>
 
@@ -71,7 +73,7 @@ export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetP
                 </motion.div>
                 {rating === item && (
                   <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary/40 bg-background/95 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary shadow-sm">
-                    {item}/5 stars
+                    {item}/5 {t('feedbackStarsSuffix', 'stars')}
                   </span>
                 )}
               </button>
@@ -82,7 +84,7 @@ export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetP
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Email (optional)</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('feedbackEmailLabel', 'Email (optional)')}</label>
           <input
             type="email"
             value={email}
@@ -92,12 +94,12 @@ export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetP
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Message</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('feedbackMessageLabel', 'Message')}</label>
           <textarea
             rows={4}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Tell us what worked and what can be improved..."
+            placeholder={t('feedbackMessagePlaceholder', 'Tell us what worked and what can be improved...')}
             className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary/70"
           />
         </div>
@@ -106,7 +108,7 @@ export function FeedbackWidget({ onSubmit, onClose, className }: FeedbackWidgetP
           disabled={!rating || sending}
           className="btn-primary w-full justify-center disabled:pointer-events-none disabled:opacity-50"
         >
-          {sending ? 'Sending...' : 'Send Feedback'}
+          {sending ? t('feedbackSending', 'Sending...') : t('feedbackSend', 'Send Feedback')}
         </button>
       </form>
     </div>

@@ -14,14 +14,7 @@ import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
 import MeetingTimeline from '@/components/ui/meeting-timeline';
 import { useToast } from '@/components/ui/toast';
-
-const STATUS_LABEL = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  scheduled: 'Scheduled',
-  cancelled: 'Cancelled',
-};
+import { useLocale } from '@/contexts/locale-context';
 
 function MeetingDetail() {
   const { id } = useParams();
@@ -37,6 +30,7 @@ function MeetingDetail() {
 
   const auth = getAuth();
   const { toast } = useToast();
+  const { t } = useLocale();
   const token = auth?.accessToken;
   const uid = auth?.user?.id;
 
@@ -275,7 +269,7 @@ function MeetingDetail() {
           to="/meetings"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft size={16} /> Back to meeting requests
+          <ArrowLeft size={16} /> {t('meetingBackToRequests', 'Back to meeting requests')}
         </Link>
 
         {loading ? (
@@ -295,7 +289,17 @@ function MeetingDetail() {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
-                  {STATUS_LABEL[m.status] || m.status}
+                  {m.status === 'pending'
+                    ? t('statusPending', 'Pending')
+                    : m.status === 'accepted'
+                      ? t('statusAccepted', 'Accepted')
+                      : m.status === 'declined'
+                        ? t('statusDeclined', 'Declined')
+                        : m.status === 'scheduled'
+                          ? t('statusScheduled', 'Scheduled')
+                          : m.status === 'cancelled'
+                            ? t('statusCancelled', 'Cancelled')
+                            : m.status}
                 </span>
                 {m.post?.confidentiality === 'meeting_only' && (
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -316,7 +320,7 @@ function MeetingDetail() {
               <p className="text-sm text-muted-foreground">
                 {isOwner && (
                   <>
-                    Request from{' '}
+                    {t('meetingRequestFrom', 'Request from')}{' '}
                     <span className="text-foreground">
                       {m.requester
                         ? `${m.requester.first_name || ''} ${m.requester.last_name || ''}`.trim()
@@ -326,7 +330,7 @@ function MeetingDetail() {
                 )}
                 {isRequester && !isOwner && (
                   <>
-                    Your request to{' '}
+                    {t('meetingYourRequestTo', 'Your request to')}{' '}
                     <span className="text-foreground">
                       {m.post_owner
                         ? `${m.post_owner.first_name || ''} ${m.post_owner.last_name || ''}`.trim()
@@ -338,7 +342,7 @@ function MeetingDetail() {
               {m.message && (
                 <div className="rounded-xl border border-border/60 bg-card/50 p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                    Message
+                    {t('meetingMessageLabel', 'Message')}
                   </p>
                   <p className="text-sm whitespace-pre-wrap">{m.message}</p>
                 </div>
@@ -347,7 +351,7 @@ function MeetingDetail() {
 
             {/* Meeting Timeline */}
             <div className="rounded-2xl border border-border/60 bg-card/50 p-5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">İlerleme</p>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">{t('meetingProgressTitle', 'Progress')}</p>
               <MeetingTimeline meeting={m} />
             </div>
 
@@ -359,11 +363,14 @@ function MeetingDetail() {
 
             {m.post?.status === 'expired' && (
               <div className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-950 dark:text-red-100">
-                <p className="font-semibold">Listing expired</p>
+                <p className="font-semibold">{t('meetingListingExpiredTitle', 'Listing expired')}</p>
                 <p className="mt-1.5 leading-relaxed opacity-95">
                   {m.status === 'cancelled'
-                    ? 'This listing reached its expiry date before you accepted or declined. The meeting request was closed automatically — accept and decline are no longer available.'
-                    : 'This listing is no longer active. Actions that require an open listing are disabled.'}
+                    ? t(
+                        'meetingListingExpiredCancelled',
+                        'This listing reached its expiry date before you accepted or declined. The meeting request was closed automatically — accept and decline are no longer available.'
+                      )
+                    : t('meetingListingExpiredInactive', 'This listing is no longer active. Actions that require an open listing are disabled.')}
                 </p>
               </div>
             )}
@@ -376,7 +383,7 @@ function MeetingDetail() {
                   onClick={accept}
                   className="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <Check size={16} /> Accept
+                  <Check size={16} /> {t('meetingAccept', 'Accept')}
                 </button>
                 <button
                   type="button"
@@ -384,7 +391,7 @@ function MeetingDetail() {
                   onClick={decline}
                   className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <X size={16} /> Decline
+                  <X size={16} /> {t('meetingDecline', 'Decline')}
                 </button>
               </div>
             )}
@@ -397,7 +404,7 @@ function MeetingDetail() {
                   onClick={decline}
                   className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <X size={16} /> Decline
+                  <X size={16} /> {t('meetingDecline', 'Decline')}
                 </button>
               </div>
             )}
@@ -406,7 +413,7 @@ function MeetingDetail() {
               <div className="rounded-2xl border border-border/60 bg-card/50 p-5 flex items-start gap-3">
                 <CalendarClock className="shrink-0 text-primary mt-0.5" size={20} />
                 <div>
-                  <p className="text-sm font-medium">Scheduled meeting</p>
+                  <p className="text-sm font-medium">{t('meetingScheduledTitle', 'Scheduled meeting')}</p>
                   <p className="text-lg">
                     {new Date(m.confirmed_slot).toLocaleString()}
                   </p>
@@ -417,7 +424,7 @@ function MeetingDetail() {
                       rel="noreferrer"
                       className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
                     >
-                      Add to Google Calendar
+                      {t('dashboardAddToGoogleCalendar', 'Add to Google Calendar')}
                     </a>
                   )}
                 </div>
@@ -426,18 +433,21 @@ function MeetingDetail() {
 
             {['pending', 'accepted'].includes(m.status) && (
               <section className="space-y-4 rounded-2xl border border-border/60 bg-card/50 p-6">
-                <h2 className="font-serif text-xl">Time slots</h2>
+                <h2 className="font-serif text-xl">{t('meetingTimeSlotsTitle', 'Time slots')}</h2>
                 {isOwner && (
                   <p className="text-sm text-muted-foreground">
-                    The requester proposes times (up to five). After you accept this request, you can confirm
-                    one slot to schedule the meeting. You do not propose new slots here.
+                    {t(
+                      'meetingTimeSlotsOwnerDesc',
+                      'The requester proposes times (up to five). After you accept this request, you can confirm one slot to schedule the meeting. You do not propose new slots here.'
+                    )}
                   </p>
                 )}
                 {isRequester && (
                   <p className="text-sm text-muted-foreground">
-                    Propose up to five slots in total. The post owner confirms one after accepting your
-                    request. You can edit or remove your proposed slots below while the meeting is still
-                    pending or accepted.
+                    {t(
+                      'meetingTimeSlotsRequesterDesc',
+                      'Propose up to five slots in total. The post owner confirms one after accepting your request. You can edit or remove your proposed slots below while the meeting is still pending or accepted.'
+                    )}
                   </p>
                 )}
 
@@ -613,7 +623,7 @@ function MeetingDetail() {
                   onClick={() => setCancelModalOpen(true)}
                   className="inline-flex items-center gap-2 text-sm text-destructive hover:underline"
                 >
-                  <Trash2 size={16} /> Cancel meeting request
+                  <Trash2 size={16} /> {t('meetingCancelRequestAction', 'Cancel meeting request')}
                 </button>
               </div>
             )}
@@ -638,10 +648,10 @@ function MeetingDetail() {
               className="relative z-50 w-full max-w-md overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-2xl"
             >
               <h3 className="mb-2 font-serif text-xl font-medium text-foreground">
-                Cancel Meeting Request
+                {t('meetingCancelModalTitle', 'Cancel Meeting Request')}
               </h3>
               <p className="mb-6 text-sm text-muted-foreground">
-                Are you sure you want to cancel this meeting request? This action cannot be undone.
+                {t('meetingCancelModalDesc', 'Are you sure you want to cancel this meeting request? This action cannot be undone.')}
               </p>
 
               <div className="flex flex-wrap justify-end gap-3">
@@ -651,7 +661,7 @@ function MeetingDetail() {
                   className="rounded-full border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
                   onClick={() => setCancelModalOpen(false)}
                 >
-                  Keep Request
+                  {t('meetingKeepRequest', 'Keep Request')}
                 </button>
                 <button
                   type="button"
@@ -662,7 +672,7 @@ function MeetingDetail() {
                     setCancelModalOpen(false);
                   }}
                 >
-                  {actionBusy ? 'Cancelling…' : 'Cancel Request'}
+                  {actionBusy ? t('meetingCancelling', 'Cancelling…') : t('meetingCancelRequest', 'Cancel Request')}
                 </button>
               </div>
             </motion.div>

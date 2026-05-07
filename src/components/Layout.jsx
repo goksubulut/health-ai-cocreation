@@ -88,8 +88,8 @@ function Layout() {
           <FeedbackWidget
             onClose={() => setFeedbackOpen(false)}
             onSubmit={(data) => {
-              // Placeholder handler until backend endpoint is added.
-              console.log('Feedback submitted:', data);
+              // Intentionally no-op until backend endpoint is added.
+              void data;
             }}
           />
         </div>
