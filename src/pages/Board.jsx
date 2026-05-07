@@ -8,6 +8,7 @@ import { BoardGridSkeleton } from '@/components/ui/skeleton';
 import { NoResults, NoPosts } from '@/components/ui/empty-state';
 import MatchScoreRing from '@/components/ui/match-score-ring';
 import { calculateProjectMatchScore } from '@/lib/matchScore';
+import { getDiscoverImageForSeed } from '@/lib/discoverImages';
 import { useToast } from '@/components/ui/toast';
 import { useLocale } from '@/contexts/locale-context';
 
@@ -47,7 +48,6 @@ function mapApiPostToBoardListing(p) {
   const title =
     typeof p.title === 'string' && p.title.trim() ? p.title.trim() : 'Untitled listing';
   const cityRaw = typeof p.city === 'string' ? p.city.trim() : '';
-  const meshIdx = Number.isFinite(idNum) && idNum > 0 ? ((idNum - 1) % 5) + 1 : 1;
   const matchScore = Number.isFinite(idNum) ? 100 - (Math.abs(idNum * 13) % 45) : 85;
 
   return {
@@ -57,7 +57,7 @@ function mapApiPostToBoardListing(p) {
     city: cityRaw,
     tags,
     matchScore,
-    imageUrl: `/assets/mesh_${meshIdx}.png`,
+    imageUrl: getDiscoverImageForSeed(rawId),
     isMock: false,
     description: desc,
   };

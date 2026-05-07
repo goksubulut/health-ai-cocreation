@@ -80,32 +80,6 @@ function getStepState(step, meeting) {
   return 'inactive';
 }
 
-function StepDot({ state }) {
-  const colors = {
-    completed: { bg: 'var(--accent-emerald)', border: 'var(--accent-emerald)', icon: '#fff' },
-    error:     { bg: 'var(--status-danger)',  border: 'var(--status-danger)',  icon: '#fff' },
-    active:    { bg: 'var(--accent-violet)',  border: 'var(--accent-violet)',  icon: '#fff' },
-    inactive:  { bg: 'var(--bg-elev-2)',      border: 'var(--border-strong)',  icon: 'var(--fg-subtle)' },
-    skip:      null,
-  };
-  const c = colors[state];
-  if (!c) return null;
-  return (
-    <motion.div
-      initial={{ scale: 0.5, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      style={{
-        width: '28px', height: '28px', borderRadius: '50%',
-        background: c.bg, border: `2px solid ${c.border}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0, color: c.icon,
-        boxShadow: state === 'completed' || state === 'active' ? `0 0 0 4px color-mix(in srgb, ${c.bg} 18%, transparent)` : 'none',
-      }}
-    />
-  );
-}
-
 export default function MeetingTimeline({ meeting, className = '' }) {
   const { locale, t } = useLocale();
   const STEP_DEFS = useMemo(() => buildStepDefs(t), [locale, t]);
@@ -119,72 +93,95 @@ export default function MeetingTimeline({ meeting, className = '' }) {
     return state !== 'skip';
   });
 
+  const completedCount = visibleSteps.filter((step) => {
+    const state = getStepState(step, meeting);
+    return state === 'completed' || state === 'error';
+  }).length;
+  const progressPercent = visibleSteps.length ? Math.round((completedCount / visibleSteps.length) * 100) : 0;
+
   return (
-    <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {visibleSteps.map((step, idx) => {
-        const state = getStepState(step, meeting);
-        const isLast = idx === visibleSteps.length - 1;
-        const isError = state === 'error';
-        const label = isError ? (step.errorLabel ?? step.label) : step.label;
-        const icon = isError ? (step.errorIcon ?? step.icon) : step.icon;
-        const isCompleted = state === 'completed' || state === 'error';
+    <div className={className}>
+      <div className="mb-5 rounded-xl border border-border/60 bg-background/70 p-3">
+        <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <span>Flow completion</span>
+          <span>{progressPercent}%</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.45 }}
+            className="h-full rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, var(--accent-violet), var(--accent-emerald))',
+            }}
+          />
+        </div>
+      </div>
 
-        // Timestamp hint
-        let hint = null;
-        if (step.id === 'requested' && meeting.created_at) {
-          hint = new Date(meeting.created_at).toLocaleDateString(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' });
-        }
-        if (step.id === 'scheduled' && meeting.confirmed_slot) {
-          hint = new Date(meeting.confirmed_slot).toLocaleString(intlLocale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        }
+      <div className="grid gap-3 sm:grid-cols-2">
+        {visibleSteps.map((step, idx) => {
+          const state = getStepState(step, meeting);
+          const isError = state === 'error';
+          const label = isError ? (step.errorLabel ?? step.label) : step.label;
+          const icon = isError ? (step.errorIcon ?? step.icon) : step.icon;
+          const isDone = state === 'completed' || state === 'error';
 
-        return (
-          <div key={step.id} style={{ display: 'flex', gap: '14px' }}>
-            {/* Left: dot + connector */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '28px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: isError ? 'var(--status-danger)' : isCompleted ? 'var(--accent-emerald)' : 'var(--fg-subtle)' }}>
-                <StepDot state={state} />
+          let hint = null;
+          if (step.id === 'requested' && meeting.created_at) {
+            hint = new Date(meeting.created_at).toLocaleDateString(intlLocale, {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            });
+          }
+          if (step.id === 'scheduled' && meeting.confirmed_slot) {
+            hint = new Date(meeting.confirmed_slot).toLocaleString(intlLocale, {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+
+          const stateStyles = isError
+            ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300'
+            : isDone
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-border/60 bg-background/70 text-muted-foreground';
+
+          return (
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className={`rounded-xl border p-3 ${stateStyles}`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                    isError
+                      ? 'border-red-500/40 bg-red-500/20'
+                      : isDone
+                        ? 'border-emerald-500/40 bg-emerald-500/20'
+                        : 'border-border/60 bg-muted/70'
+                  }`}
+                >
+                  {icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{label}</p>
+                  {hint && (
+                    <p className="mt-1 text-xs opacity-80">{hint}</p>
+                  )}
+                </div>
               </div>
-              {!isLast && (
-                <motion.div
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ duration: 0.4, delay: idx * 0.08 }}
-                  style={{
-                    flex: 1, width: '2px', minHeight: '28px',
-                    background: isCompleted ? 'var(--accent-emerald)' : 'var(--border)',
-                    transformOrigin: 'top',
-                    margin: '4px 0',
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Right: label + hint */}
-            <div style={{ paddingBottom: isLast ? 0 : '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '28px' }}>
-              <motion.p
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.07 }}
-                style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '13px',
-                  fontWeight: isCompleted ? 600 : 400,
-                  color: state === 'inactive' ? 'var(--fg-subtle)' : isError ? 'var(--status-danger)' : 'var(--fg)',
-                }}
-              >
-                {label}
-              </motion.p>
-              {hint && (
-                <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--fg-subtle)' }}>
-                  {hint}
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })}
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { getDiscoverImageForSeed } from './discoverImages'
+
 const abstractPosterThemes = [
   {
     id: 'halo-orb',
@@ -260,6 +262,6 @@ export const boardListings = showcaseListings.map((listing) => ({
   distanceKm: listing.distanceKm,
   matchScore: Math.max(55, 100 - Math.round(listing.distanceKm * 12)),
   summary: listing.summary,
-  imageUrl: listing.imageUrl,
+  imageUrl: getDiscoverImageForSeed(listing.id),
   stage: listing.stage,
 }))

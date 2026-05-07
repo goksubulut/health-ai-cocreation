@@ -20,11 +20,13 @@ import {
 import { Link } from 'react-router-dom';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { CreatePostCTA } from '@/components/ui/hand-writing-text';
-import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
+import { buildGoogleCalendarDeeplink, buildGoogleMeetEventDeeplink } from '@/lib/googleCalendar';
 import { calculateProjectMatchScore } from '@/lib/matchScore';
+import { getDiscoverImageForSeed } from '@/lib/discoverImages';
 import { DashboardStatsSkeleton, MeetingRowSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useLocale } from '@/contexts/locale-context';
+import { boardListings } from '@/lib/showcaseListings';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -42,17 +44,15 @@ const STATUS_STYLES = {
 
 function mapPostToDiscoverCard(post) {
   const rawId = post?.id;
-  const idNum = typeof rawId === 'number' ? rawId : parseInt(String(rawId), 10);
   const expertise =
     typeof post?.required_expertise === 'string' && post.required_expertise.trim()
       ? post.required_expertise.trim()
       : 'Collaborator';
   const city = typeof post?.city === 'string' ? post.city.trim() : '';
-  const meshIdx = Number.isFinite(idNum) && idNum > 0 ? ((idNum - 1) % 5) + 1 : 1;
   return {
     role: expertise,
     city,
-    imageUrl: `/assets/mesh_${meshIdx}.png`,
+    imageUrl: getDiscoverImageForSeed(rawId),
   };
 }
 
@@ -85,6 +85,18 @@ function buildMeetingNotifications(list, uid, t) {
           postStatus: m.post?.status || '',
           text: `${formatPersonName(m.requester)} sent a meeting request for "${postTitle}".`,
         });
+      } else if (m.status === 'accepted') {
+        items.push({
+          key: `in-${m.id}-accepted`,
+          kind: 'accepted',
+          meetingId: m.id,
+          at: updatedAt,
+          postStatus: m.post?.status || '',
+          text: interpolate(
+            t('dashboardNotifIncomingAccepted', '{person} accepted flow is active for "{post}". Review and confirm a slot.'),
+            { person: formatPersonName(m.requester), post: postTitle }
+          ),
+        });
       } else if (m.status === 'scheduled' && m.confirmed_slot) {
         const when = new Date(m.confirmed_slot).toLocaleString();
         items.push({
@@ -116,6 +128,16 @@ function buildMeetingNotifications(list, uid, t) {
           ),
         });
       } else if (m.status === 'accepted') {
+        const meetUrl = m.time_slots?.[0]?.slot_datetime
+          ? buildGoogleMeetEventDeeplink({
+              title: postTitle,
+              details:
+                typeof m.post?.description === 'string' && m.post.description.trim()
+                  ? m.post.description
+                  : `Meeting with ${formatPersonName(m.post_owner)}.`,
+              startIso: m.time_slots[0].slot_datetime,
+            })
+          : '';
         const calendarUrl = m.confirmed_slot
           ? buildGoogleCalendarDeeplink({
               title: postTitle,
@@ -136,10 +158,19 @@ function buildMeetingNotifications(list, uid, t) {
             t('dashboardNotifOutgoingAccepted', 'Your request for "{post}" was accepted by {person}.'),
             { person: formatPersonName(m.post_owner), post: postTitle }
           ),
+          meetUrl,
           calendarUrl,
         });
       } else if (m.status === 'scheduled' && m.confirmed_slot) {
         const when = new Date(m.confirmed_slot).toLocaleString();
+        const meetUrl = buildGoogleMeetEventDeeplink({
+          title: postTitle,
+          details:
+            typeof m.post?.description === 'string' && m.post.description.trim()
+              ? m.post.description
+              : `Meeting with ${formatPersonName(m.post_owner)}.`,
+          startIso: m.confirmed_slot,
+        });
         const calendarUrl = buildGoogleCalendarDeeplink({
           title: postTitle,
           details:
@@ -159,6 +190,7 @@ function buildMeetingNotifications(list, uid, t) {
             t('dashboardNotifOutgoingScheduled', 'Your meeting for "{post}" is scheduled for {when}.'),
             { post: postTitle, when }
           ),
+          meetUrl,
           calendarUrl,
         });
       }
@@ -187,6 +219,13 @@ function Dashboard() {
   const [meetingPending, setMeetingPending] = useState(null);
   const [incomingMatchCount, setIncomingMatchCount] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [meetingsRaw, setMeetingsRaw] = useState([]);
+  const [meetingSummary, setMeetingSummary] = useState({
+    all: 0,
+    awaiting: 0,
+    ndaAccepted: 0,
+    scheduled: 0,
+  });
   const [meetingsLoading, setMeetingsLoading] = useState(true);
   const [recommendedProjects, setRecommendedProjects] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
@@ -199,7 +238,39 @@ function Dashboard() {
     try {
       const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${a.accessToken}` } });
       const json = await res.json();
-      if (res.ok && Array.isArray(json.data)) setSavedPosts(json.data);
+      const apiBookmarks = res.ok && Array.isArray(json.data) ? json.data : [];
+
+      // Ayrıca Discover/Board ekranında yerel olarak kaydedilmiş (mock vitrin) ilanları da ekle.
+      let localShowcaseBookmarks = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = window.localStorage.getItem('health-ai-cocreation:board-favorites');
+          const ids = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(ids)) {
+            localShowcaseBookmarks = ids
+              .map((id) => {
+                const item = boardListings.find((p) => String(p.id) === String(id));
+                if (!item) return null;
+                // Dashboard panelinin beklediği forma yakın hafif model
+                return {
+                  id: `showcase-${item.id}`,
+                  post: {
+                    id: item.id,
+                    title: item.title,
+                    city: item.city || '',
+                    required_expertise: item.role || '',
+                  },
+                };
+              })
+              .filter(Boolean);
+          }
+        } catch {
+          // localStorage hatalarını sessizce yoksay
+          localShowcaseBookmarks = [];
+        }
+      }
+
+      setSavedPosts([...apiBookmarks, ...localShowcaseBookmarks]);
     } catch { setSavedPosts([]); }
   };
 
@@ -257,6 +328,8 @@ function Dashboard() {
       setMeetingPending(null);
       setIncomingMatchCount(null);
       setNotifications([]);
+      setMeetingsRaw([]);
+      setMeetingSummary({ all: 0, awaiting: 0, ndaAccepted: 0, scheduled: 0 });
       setMeetingsLoading(false);
       return;
     }
@@ -270,9 +343,12 @@ function Dashboard() {
         setMeetingPending(null);
         setIncomingMatchCount(null);
         setNotifications([]);
+        setMeetingsRaw([]);
+        setMeetingSummary({ all: 0, awaiting: 0, ndaAccepted: 0, scheduled: 0 });
         return;
       }
       const list = Array.isArray(json.data) ? json.data : [];
+      const activeList = list.filter((x) => ['pending', 'accepted', 'scheduled'].includes(x.status));
       const uid = a.user?.id;
       setMeetingPending(list.filter((x) => x.status === 'pending').length);
       setIncomingMatchCount(
@@ -280,11 +356,20 @@ function Dashboard() {
           ? list.filter((x) => x.post_owner_id === uid && ['pending', 'accepted', 'scheduled'].includes(x.status)).length
           : 0
       );
+      setMeetingsRaw(list);
+      setMeetingSummary({
+        all: activeList.length,
+        awaiting: list.filter((x) => x.status === 'pending').length,
+        ndaAccepted: list.filter((x) => x.nda_accepted || x.status === 'accepted').length,
+        scheduled: list.filter((x) => x.status === 'scheduled').length,
+      });
       setNotifications(buildMeetingNotifications(list, uid, t));
     } catch {
       setMeetingPending(null);
       setIncomingMatchCount(null);
       setNotifications([]);
+      setMeetingsRaw([]);
+      setMeetingSummary({ all: 0, awaiting: 0, ndaAccepted: 0, scheduled: 0 });
     } finally {
       setMeetingsLoading(false);
     }
@@ -360,8 +445,17 @@ function Dashboard() {
       loadSavedPosts();
     };
     loadRecommendedProjects();
+    const intervalId = window.setInterval(() => {
+      loadMeetingsData();
+      loadSavedPosts();
+    }, 15000);
+    window.addEventListener('focus', sync);
     window.addEventListener(ev, sync);
-    return () => window.removeEventListener(ev, sync);
+    return () => {
+      window.removeEventListener(ev, sync);
+      window.removeEventListener('focus', sync);
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
@@ -382,15 +476,44 @@ function Dashboard() {
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(start.getDate() + 7);
-    return notifications
-      .filter((n) => n.kind === 'scheduled')
-      .filter((n) => {
-        const raw = n.confirmedAt || n.at;
-        const time = new Date(raw).getTime();
-        return Number.isFinite(time) && time >= start.getTime() && time < end.getTime();
-      })
+    const items = [];
+
+    meetingsRaw.forEach((meeting) => {
+      if (meeting.status === 'scheduled' && meeting.confirmed_slot) {
+        const when = new Date(meeting.confirmed_slot).getTime();
+        if (Number.isFinite(when) && when >= start.getTime() && when < end.getTime()) {
+          items.push({
+            key: `scheduled-${meeting.id}`,
+            kind: 'scheduled',
+            at: meeting.confirmed_slot,
+            confirmedAt: meeting.confirmed_slot,
+            text: meeting.post?.title || `Post #${meeting.post_id}`,
+            meetingId: meeting.id,
+          });
+        }
+      }
+
+      if (meeting.status === 'accepted' && Array.isArray(meeting.time_slots)) {
+        meeting.time_slots.forEach((slot) => {
+          const when = new Date(slot.slot_datetime).getTime();
+          if (Number.isFinite(when) && when >= start.getTime() && when < end.getTime()) {
+            items.push({
+              key: `accepted-slot-${meeting.id}-${slot.id}`,
+              kind: 'accepted_slot',
+              at: slot.slot_datetime,
+              confirmedAt: slot.slot_datetime,
+              text: meeting.post?.title || `Post #${meeting.post_id}`,
+              meetingId: meeting.id,
+            });
+          }
+        });
+      }
+    });
+
+    return items
+      .sort((a, b) => new Date(a.confirmedAt || a.at).getTime() - new Date(b.confirmedAt || b.at).getTime())
       .slice(0, 3);
-  }, [notifications]);
+  }, [meetingsRaw]);
 
   const stats = [
     {
@@ -429,10 +552,10 @@ function Dashboard() {
         <div className="sidebar">
           <h4>{t('inbox', 'Inbox')}</h4>
           <ul>
-            <li className="active">{t('allRequests', 'All requests')} <span className="count">{meetingPending ?? 0}</span></li>
-            <li>{t('awaitingResponse', 'Awaiting response')} <span className="count">{meetingPending ?? 0}</span></li>
-            <li>{t('ndaAccepted', 'NDA / accepted')} <span className="count">{notifications.filter((n) => n.kind === 'accepted').length}</span></li>
-            <li>{t('scheduled', 'Scheduled')} <span className="count">{notifications.filter((n) => n.kind === 'scheduled').length}</span></li>
+            <li className="active">{t('allRequests', 'All requests')} <span className="count">{meetingSummary.all}</span></li>
+            <li>{t('awaitingResponse', 'Awaiting response')} <span className="count">{meetingSummary.awaiting}</span></li>
+            <li>{t('ndaAccepted', 'NDA / accepted')} <span className="count">{meetingSummary.ndaAccepted}</span></li>
+            <li>{t('scheduled', 'Scheduled')} <span className="count">{meetingSummary.scheduled}</span></li>
           </ul>
           <li
             className={savedTab ? 'active' : ''}
@@ -479,7 +602,7 @@ function Dashboard() {
             
             {meetingsLoading ? (
               [0,1,2].map((i) => <MeetingRowSkeleton key={i} />)
-            ) : notifications.slice(0, 6).map((n) => {
+            ) : notifications.filter((n) => n.key.startsWith('in-')).slice(0, 6).map((n) => {
               const uStatus = n.postStatus === 'expired'
                 ? 'expired'
                 : n.kind === 'scheduled'
@@ -521,7 +644,7 @@ function Dashboard() {
                 </div>
               );
             })}
-            {!meetingsLoading && !notifications.length && (
+            {!meetingsLoading && notifications.filter((n) => n.key.startsWith('in-')).length === 0 && (
               <div className="p-6 text-center text-muted-foreground text-sm">
                 {t('dashboardNoInboundRequests', 'No inbound requests yet.')}
               </div>
@@ -544,13 +667,28 @@ function Dashboard() {
                    <div className="sched-event violet">
                       <div className="sched-time">{new Date(n.confirmedAt || n.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       <div>
-                        <div className="sched-title">{t('dashboardIntroductoryCall', 'Introductory Call')}</div>
+                        <div className="sched-title">
+                          {n.kind === 'accepted_slot'
+                            ? t('dashboardProposedSlot', 'Proposed Time Slot')
+                            : t('dashboardIntroductoryCall', 'Introductory Call')}
+                        </div>
                         <div className="sched-sub">{n.text}</div>
                       </div>
-                      {n.calendarUrl && (
-                        <a href={n.calendarUrl} target="_blank" rel="noreferrer" className="btn-sm primary" style={{ textDecoration: 'none' }}>
-                          {t('dashboardAddToGoogleCalendar', 'Add to Google Calendar')}
+                      {(n.meetUrl || n.calendarUrl) && (
+                        <a
+                          href={n.meetUrl || n.calendarUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-sm primary"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          {t('googleMeetPlanForSlot', 'Plan a Google Meet for this slot')}
                         </a>
+                      )}
+                      {!n.meetUrl && !n.calendarUrl && n.meetingId && (
+                        <Link to={`/meetings/${n.meetingId}`} className="btn-sm primary" style={{ textDecoration: 'none' }}>
+                          {t('dashboardViewDetails', 'View details')}
+                        </Link>
                       )}
                    </div>
                  </div>

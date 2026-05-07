@@ -398,7 +398,6 @@
   min-height: 44px;
 }
 
-.a11y-spacious-controls button,
 .a11y-spacious-controls .btn,
 .a11y-spacious-controls .nav-link,
 .a11y-spacious-controls .avatar,
@@ -417,7 +416,6 @@
   line-height: 1.1;
 }
 
-.a11y-spacious-controls button,
 .a11y-spacious-controls .btn,
 .a11y-spacious-controls .nav-link,
 .a11y-spacious-controls .filter,
@@ -1471,6 +1469,11 @@
     padding: 7px 10px;
     text-transform: uppercase;
   }
+
+.a11y-high-contrast .a11y-preview__chip {
+  background: var(--fg) !important;
+  color: var(--bg) !important;
+}
 
   .a11y-preview__rail {
     position: relative;

@@ -18,6 +18,7 @@ import MatchScoreRing from '@/components/ui/match-score-ring';
 import { calculateProjectMatchScore } from '@/lib/matchScore';
 import { useToast } from '@/components/ui/toast';
 import { useLocale } from '@/contexts/locale-context';
+import SlotDateTimeField from '@/components/ui/slot-date-time-field';
 
 const STAGE_LABELS = {
   idea: 'Idea',
@@ -666,16 +667,17 @@ function PostDetail() {
                 </div>
                 {slotInputs.map((val, i) => (
                   <div key={i} className="flex gap-2">
-                    <input
-                      type="datetime-local"
+                    <div className="flex-1">
+                      <SlotDateTimeField
                       value={val}
-                      onChange={(e) => {
+                      minDate={new Date().toISOString().slice(0, 10)}
+                      onChange={(nextValue) => {
                         const next = [...slotInputs];
-                        next[i] = e.target.value;
+                        next[i] = nextValue;
                         setSlotInputs(next);
                       }}
-                      className="flex h-11 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
-                    />
+                      />
+                    </div>
                     {slotInputs.length > 1 && (
                       <button
                         type="button"

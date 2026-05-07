@@ -27,4 +27,20 @@ function buildGoogleCalendarDeeplink({
   return `${GOOGLE_CALENDAR_BASE_URL}&text=${text}&dates=${start}%2F${end}&details=${detailsValue}&location=${locationValue}`;
 }
 
-export { buildGoogleCalendarDeeplink, formatGoogleCalendarUtc };
+function buildGoogleMeetEventDeeplink({
+  title,
+  details,
+  startIso,
+  endIso,
+}) {
+  const meetHint = 'Google Meet linkini etkinlik ekraninda "Google Meet goruntulu gorusme ekle" secenegiyle ekleyin.';
+  return buildGoogleCalendarDeeplink({
+    title: title || 'Google Meet session',
+    details: [details, meetHint].filter(Boolean).join('\n\n'),
+    startIso,
+    endIso,
+    location: 'Google Meet',
+  });
+}
+
+export { buildGoogleCalendarDeeplink, buildGoogleMeetEventDeeplink, formatGoogleCalendarUtc };

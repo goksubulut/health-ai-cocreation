@@ -11,10 +11,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
-import { buildGoogleCalendarDeeplink } from '@/lib/googleCalendar';
+import { buildGoogleMeetEventDeeplink } from '@/lib/googleCalendar';
 import MeetingTimeline from '@/components/ui/meeting-timeline';
 import { useToast } from '@/components/ui/toast';
 import { useLocale } from '@/contexts/locale-context';
+import SlotDateTimeField from '@/components/ui/slot-date-time-field';
 
 function MeetingDetail() {
   const { id } = useParams();
@@ -250,8 +251,8 @@ function MeetingDetail() {
   };
 
   const slots = Array.isArray(m?.time_slots) ? m.time_slots : [];
-  const calendarLink = m?.confirmed_slot
-    ? buildGoogleCalendarDeeplink({
+  const meetPlanningLink = m?.confirmed_slot
+    ? buildGoogleMeetEventDeeplink({
         title: m.post?.title || `Meeting for Post #${m.post_id}`,
         details: m.post?.description || m.message || 'Collaboration meeting',
         startIso: m.confirmed_slot,
@@ -350,8 +351,45 @@ function MeetingDetail() {
             </motion.header>
 
             {/* Meeting Timeline */}
-            <div className="rounded-2xl border border-border/60 bg-card/50 p-5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">{t('meetingProgressTitle', 'Progress')}</p>
+            <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm">
+              <div className="pointer-events-none absolute inset-0 opacity-[0.12]">
+                <div className="absolute -left-16 -top-24 h-56 w-56 rounded-full bg-emerald-500/40 blur-3xl" />
+                <div className="absolute -right-20 bottom-[-72px] h-64 w-64 rounded-full bg-violet-500/40 blur-3xl" />
+              </div>
+              <div className="relative flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    {t('meetingProgressTitle', 'Progress')}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {m.status === 'scheduled'
+                      ? 'Intro ready · calendar-confirmed'
+                      : m.status === 'accepted'
+                        ? 'Waiting on a confirmed time'
+                        : m.status === 'pending'
+                          ? 'Request sent · waiting on response'
+                          : m.status === 'declined'
+                            ? 'Closed · request declined'
+                            : 'Closed'}
+                  </p>
+                </div>
+                <div className="hidden sm:flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{
+                      background:
+                        m.status === 'scheduled'
+                          ? 'var(--accent-emerald)'
+                          : m.status === 'accepted'
+                            ? 'var(--accent-violet)'
+                            : m.status === 'pending'
+                              ? 'var(--status-warning)'
+                              : 'var(--status-danger)',
+                    }}
+                  />
+                  <span>{new Date(m.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
               <MeetingTimeline meeting={m} />
             </div>
 
@@ -417,14 +455,14 @@ function MeetingDetail() {
                   <p className="text-lg">
                     {new Date(m.confirmed_slot).toLocaleString()}
                   </p>
-                  {calendarLink && (
+                  {meetPlanningLink && (
                     <a
-                      href={calendarLink}
+                      href={meetPlanningLink}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
                     >
-                      {t('dashboardAddToGoogleCalendar', 'Add to Google Calendar')}
+                      {t('googleMeetPlanForSlot', 'Plan a Google Meet for this slot')}
                     </a>
                   )}
                 </div>
@@ -473,12 +511,13 @@ function MeetingDetail() {
                         >
                           {editingSlotId === s.id ? (
                             <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
-                              <input
-                                type="datetime-local"
+                              <div className="flex-1 min-w-[220px]">
+                                <SlotDateTimeField
                                 value={editSlotValue}
-                                onChange={(e) => setEditSlotValue(e.target.value)}
-                                className="flex h-11 flex-1 min-w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                              />
+                                minDate={new Date().toISOString().slice(0, 10)}
+                                onChange={setEditSlotValue}
+                                />
+                              </div>
                               <button
                                 type="button"
                                 disabled={actionBusy}
@@ -569,16 +608,17 @@ function MeetingDetail() {
                       </p>
                       {slotInputs.map((val, i) => (
                         <div key={i} className="flex gap-2">
-                          <input
-                            type="datetime-local"
+                          <div className="flex-1">
+                            <SlotDateTimeField
                             value={val}
-                            onChange={(e) => {
+                            minDate={new Date().toISOString().slice(0, 10)}
+                            onChange={(nextValue) => {
                               const next = [...slotInputs];
-                              next[i] = e.target.value;
+                              next[i] = nextValue;
                               setSlotInputs(next);
                             }}
-                            className="flex h-11 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          />
+                            />
+                          </div>
                           {slotInputs.length > 1 && (
                             <button
                               type="button"

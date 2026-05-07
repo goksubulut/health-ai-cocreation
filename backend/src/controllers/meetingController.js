@@ -243,6 +243,12 @@ const getMyMeetings = async (req, res) => {
         { model: Post, as: 'post', attributes: POST_ATTRS_DETAIL },
         { model: User, as: 'requester', attributes: USER_ATTRS },
         { model: User, as: 'postOwner', attributes: USER_ATTRS },
+        {
+          model: TimeSlot,
+          as: 'timeSlots',
+          separate: true,
+          order: [['slotDatetime', 'ASC']],
+        },
       ],
       order: [['createdAt', 'DESC']],
     });
