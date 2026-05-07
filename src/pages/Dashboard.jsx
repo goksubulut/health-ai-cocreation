@@ -82,6 +82,7 @@ function buildMeetingNotifications(list, uid, t) {
           kind: 'incoming',
           meetingId: m.id,
           at: createdAt,
+          postStatus: m.post?.status || '',
           text: `${formatPersonName(m.requester)} sent a meeting request for "${postTitle}".`,
         });
       } else if (m.status === 'scheduled' && m.confirmed_slot) {
@@ -90,7 +91,9 @@ function buildMeetingNotifications(list, uid, t) {
           key: `in-${m.id}-scheduled`,
           kind: 'scheduled',
           meetingId: m.id,
-          at: updatedAt,
+          at: m.confirmed_slot,
+          confirmedAt: m.confirmed_slot,
+          postStatus: m.post?.status || '',
           text: interpolate(
             t('dashboardNotifIncomingScheduled', 'Your meeting with {person} for "{post}" is scheduled for {when}.'),
             { person: formatPersonName(m.requester), post: postTitle, when }
@@ -106,6 +109,7 @@ function buildMeetingNotifications(list, uid, t) {
           kind: 'declined',
           meetingId: m.id,
           at: updatedAt,
+          postStatus: m.post?.status || '',
           text: interpolate(
             t('dashboardNotifOutgoingDeclined', 'Your request for "{post}" was declined by {person}.'),
             { person: formatPersonName(m.post_owner), post: postTitle }
@@ -127,6 +131,7 @@ function buildMeetingNotifications(list, uid, t) {
           kind: 'accepted',
           meetingId: m.id,
           at: updatedAt,
+          postStatus: m.post?.status || '',
           text: interpolate(
             t('dashboardNotifOutgoingAccepted', 'Your request for "{post}" was accepted by {person}.'),
             { person: formatPersonName(m.post_owner), post: postTitle }
@@ -147,7 +152,9 @@ function buildMeetingNotifications(list, uid, t) {
           key: `out-${m.id}-scheduled`,
           kind: 'scheduled',
           meetingId: m.id,
-          at: updatedAt,
+          at: m.confirmed_slot,
+          confirmedAt: m.confirmed_slot,
+          postStatus: m.post?.status || '',
           text: interpolate(
             t('dashboardNotifOutgoingScheduled', 'Your meeting for "{post}" is scheduled for {when}.'),
             { post: postTitle, when }
@@ -366,6 +373,25 @@ function Dashboard() {
     [posts]
   );
 
+  const scheduledThisWeek = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const start = new Date(now);
+    start.setDate(now.getDate() + mondayOffset);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return notifications
+      .filter((n) => n.kind === 'scheduled')
+      .filter((n) => {
+        const raw = n.confirmedAt || n.at;
+        const time = new Date(raw).getTime();
+        return Number.isFinite(time) && time >= start.getTime() && time < end.getTime();
+      })
+      .slice(0, 3);
+  }, [notifications]);
+
   const stats = [
     {
       title: isHealthcare ? t('dashboardMetricActivePosts', 'Active Posts') : t('dashboardMetricActiveCollaborations', 'Active Collaborations'),
@@ -454,21 +480,33 @@ function Dashboard() {
             {meetingsLoading ? (
               [0,1,2].map((i) => <MeetingRowSkeleton key={i} />)
             ) : notifications.slice(0, 6).map((n) => {
-              const uStatus = n.kind === 'scheduled' ? 'scheduled' : n.kind === 'accepted' ? 'nda' : 'pending';
+              const uStatus = n.postStatus === 'expired'
+                ? 'expired'
+                : n.kind === 'scheduled'
+                  ? 'scheduled'
+                  : n.kind === 'accepted'
+                    ? 'nda'
+                    : 'pending';
               const isNda = uStatus === 'nda';
               const isPending = uStatus === 'pending';
+              const isExpired = uStatus === 'expired';
               
               return (
                 <div key={n.key} className="req-row">
-                  <div className="req-avatar" style={{ background: isNda ? 'var(--accent-violet)' : isPending ? 'var(--status-warning)' : 'var(--accent-emerald)' }}>
+                  <div className="req-avatar" style={{ background: isExpired ? 'var(--status-danger)' : isNda ? 'var(--accent-violet)' : isPending ? 'var(--status-warning)' : 'var(--accent-emerald)' }}>
                     <Bell size={16} />
                   </div>
                   <div>
                     <div className="req-name">{n.text}</div>
                     <div className="req-sub">
-                      <span className={`status ${isPending ? 's-pending' : isNda ? 's-nda' : 's-scheduled'} mr-2`}>
+                      <span
+                        className={`status ${isPending ? 's-pending' : isNda ? 's-nda' : 's-scheduled'} mr-2`}
+                        style={isExpired ? { background: 'var(--status-danger-tint)', color: 'var(--status-danger)' } : undefined}
+                      >
                         <span className="pip"></span>
-                        {isPending
+                        {isExpired
+                          ? t('statusExpired', 'Expired')
+                          : isPending
                           ? t('statusPending', 'Pending')
                           : isNda
                             ? t('ndaAccepted', 'NDA / accepted')
@@ -496,15 +534,15 @@ function Dashboard() {
               <Link to="/meetings" className="text-xs text-muted-foreground font-semibold hover:text-foreground">{t('dashboardViewCalendar', 'View calendar →')}</Link>
             </div>
             
-            {notifications.filter((n) => n.kind === 'scheduled').slice(0, 3).map((n) => (
+            {scheduledThisWeek.map((n) => (
               <div key={`${n.key}-wk`} className="sched-day">
                  <div className="sched-date">
-                   {new Date(n.at).getDate()}
-                   <small>{new Date(n.at).toLocaleString('default', { month: 'short' })}</small>
+                   {new Date(n.confirmedAt || n.at).getDate()}
+                   <small>{new Date(n.confirmedAt || n.at).toLocaleString('default', { month: 'short' })}</small>
                  </div>
                  <div className="sched-events">
                    <div className="sched-event violet">
-                      <div className="sched-time">{new Date(n.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="sched-time">{new Date(n.confirmedAt || n.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       <div>
                         <div className="sched-title">{t('dashboardIntroductoryCall', 'Introductory Call')}</div>
                         <div className="sched-sub">{n.text}</div>
@@ -519,7 +557,7 @@ function Dashboard() {
               </div>
             ))}
             
-            {!notifications.some((n) => n.kind === 'scheduled') && (
+            {!scheduledThisWeek.length && (
               <div className="text-center text-muted-foreground text-sm py-4">
                 {t('dashboardNoScheduledIntros', 'No scheduled intros this week.')}
               </div>

@@ -197,20 +197,20 @@ function Board() {
       const text = `${p.title} ${p.role} ${p.tags.join(' ')}`.toLocaleLowerCase('tr');
       const searchOk = !q || text.includes(q);
       const filterOk = activeFilter === 'All' ? true 
-                     : activeFilter === 'Favorites' ? favoriteIds.includes(String(p.id))
+                     : activeFilter === 'Favorites' ? bookmarkIds.includes(String(p.id))
                      : p.tags.some((t) => t === activeFilter);
       const cityOk = !cityFilter || p.city === cityFilter;
       const expertiseOk = !expertiseFilter || p.role === expertiseFilter;
       return searchOk && filterOk && cityOk && expertiseOk;
     });
-  }, [posts, searchTerm, activeFilter, cityFilter, expertiseFilter, favoriteIds]);
+  }, [posts, searchTerm, activeFilter, cityFilter, expertiseFilter, bookmarkIds]);
   const orderedPosts = useMemo(
     () => [...filteredPosts].sort((a, b) => b.matchScore - a.matchScore),
     [filteredPosts]
   );
   const favoriteListings = useMemo(
-    () => orderedPosts.filter((post) => favoriteIds.includes(String(post.id))),
-    [orderedPosts, favoriteIds]
+    () => orderedPosts.filter((post) => bookmarkIds.includes(String(post.id))),
+    [orderedPosts, bookmarkIds]
   );
 
   const activeFilterCount = [
@@ -384,7 +384,7 @@ function Board() {
             <div className="grid-listings-inner col-span-full w-full">
               {orderedPosts.map((post, idx) => {
                 const isBookmarked = bookmarkIds.includes(String(post.id));
-                const isFav = favoriteIds.includes(String(post.id));
+                const isFav = bookmarkIds.includes(String(post.id));
                 // Login gate: blur cards beyond index 2 for guests
                 const isGated = !auth?.accessToken && idx >= 3;
 

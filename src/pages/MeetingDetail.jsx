@@ -83,11 +83,11 @@ function MeetingDetail() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Accept failed.');
       setM(json.data);
-      toast({ title: 'İstek kabul edildi', variant: 'success' });
+      toast({ title: t('meetingRequestAcceptedToast', 'Request accepted'), variant: 'success' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Accept failed.';
       setErr(msg);
-      toast({ title: 'Hata', description: msg, variant: 'error' });
+      toast({ title: t('errorTitle', 'Error'), description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
@@ -102,11 +102,11 @@ function MeetingDetail() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Decline failed.');
       setM(json.data);
-      toast({ title: 'İstek reddedildi', variant: 'info' });
+      toast({ title: t('meetingRequestDeclinedToast', 'Request declined'), variant: 'info' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Decline failed.';
       setErr(msg);
-      toast({ title: 'Hata', description: msg, variant: 'error' });
+      toast({ title: t('errorTitle', 'Error'), description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
@@ -214,11 +214,11 @@ function MeetingDetail() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || 'Confirm failed.');
       setM(json.data);
-      toast({ title: 'Toplantı zamanlandı', variant: 'success' });
+      toast({ title: t('meetingScheduledToast', 'Meeting scheduled'), variant: 'success' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Confirm failed.';
       setErr(msg);
-      toast({ title: 'Hata', description: msg, variant: 'error' });
+      toast({ title: t('errorTitle', 'Error'), description: msg, variant: 'error' });
     } finally {
       setActionBusy(false);
     }
