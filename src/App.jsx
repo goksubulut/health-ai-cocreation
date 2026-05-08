@@ -16,6 +16,7 @@ import MeetingRequest from './pages/MeetingRequest';
 import MeetingRequests from './pages/MeetingRequests';
 import MeetingDetail from './pages/MeetingDetail';
 import MndaAgreementPage from './pages/MndaAgreementPage';
+import ChatPage from './pages/ChatPage';
 import Profile from './pages/Profile';
 import SettingsPage from './pages/SettingsPage';
 import HowMatchingWorks from './pages/HowMatchingWorks';
@@ -32,6 +33,7 @@ import CommandPalette from './components/ui/command-palette';
 import { LocaleProvider } from './contexts/locale-context';
 import { TourProvider } from './contexts/tour-context';
 import { AccessibilityProvider, useAccessibility } from './contexts/accessibility-context';
+import { ChatProvider } from './contexts/chat-context';
 
 function AccessibilityMotionBoundary({ children }) {
   const { preferences } = useAccessibility();
@@ -50,6 +52,7 @@ function App() {
       <AccessibilityProvider>
       <AccessibilityMotionBoundary>
       <ToastProvider>
+      <ChatProvider>
       <BrowserRouter>
         <TourProvider>
         <Routes>
@@ -130,6 +133,22 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
+                  <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="chat/:convId"
+              element={
+                <ProtectedRoute allowedRoles={['healthcare', 'engineer']}>
+                  <ChatPage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           <Route
@@ -150,6 +169,7 @@ function App() {
         <CommandPalette />
         </TourProvider>
       </BrowserRouter>
+      </ChatProvider>
       </ToastProvider>
       </AccessibilityMotionBoundary>
       </AccessibilityProvider>

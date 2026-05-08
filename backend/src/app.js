@@ -14,6 +14,7 @@ const userRoutes    = require('./routes/users');
 const adminRoutes        = require('./routes/admin');
 const bookmarkRoutes     = require('./routes/bookmarks');
 const notificationRoutes = require('./routes/notifications');
+const chatRoutes         = require('./routes/chat');
 
 const app = express();
 
@@ -23,7 +24,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        connectSrc: ["'self'", 'data:', 'blob:', 'http:', 'https:'],
+        connectSrc: ["'self'", 'data:', 'blob:', 'http:', 'https:', 'ws:', 'wss:'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
@@ -50,6 +51,7 @@ app.use('/api/users',    userRoutes);
 app.use('/api/admin',         adminRoutes);
 app.use('/api/bookmarks',     bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat',         chatRoutes);
 
 // ── Sağlık kontrolü ───────────────────────────────────────────
 app.get('/health', (req, res) => {

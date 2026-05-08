@@ -3,7 +3,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, CircleHelp, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
+import { Bell, CircleHelp, LogOut, MessageSquare, Moon, Settings, Sun, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
 import {
@@ -248,6 +248,7 @@ export function Header({
               <>
                 <Link to="/board" className={cn("nav-link", location.pathname === '/board' && "active")}>{t('discover', 'Discover')}</Link>
                 <Link to={dashboardPath} className={cn("nav-link", location.pathname.includes('/dashboard') && "active")}>{t('dashboard', 'Dashboard')}</Link>
+                <Link to="/chat" className={cn("nav-link", location.pathname.startsWith('/chat') && "active")}>{t('messages', 'Messages')}</Link>
               </>
             ) : (
               <>
@@ -374,6 +375,9 @@ export function Header({
             <>
               <MobileLink to={dashboardPath} onClick={() => setOpen(false)}>{t('dashboard', 'Dashboard')}</MobileLink>
               <MobileLink to="/board" onClick={() => setOpen(false)}>{t('discover', 'Discover')}</MobileLink>
+              <MobileLink to="/chat" onClick={() => setOpen(false)}>
+                <MessageSquare size={16} /> {t('messages', 'Messages')}
+              </MobileLink>
               <MobileLink to={profilePath} onClick={() => setOpen(false)}>{t('profile', 'Profile')}</MobileLink>
               <MobileLink to={settingsPath} onClick={() => setOpen(false)}>{t('settings', 'Settings')}</MobileLink>
               <button
