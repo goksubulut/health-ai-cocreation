@@ -28,7 +28,9 @@ COPY --from=backend-deps /app/backend/node_modules ./backend/node_modules
 COPY backend ./backend
 COPY --from=frontend-builder /app/dist ./dist
 
+# Render gerçek portu PORT ile verir; görüntü için örnek
 EXPOSE 3001
 WORKDIR /app/backend
 
+ENV HOST=0.0.0.0
 CMD ["node", "server.js"]

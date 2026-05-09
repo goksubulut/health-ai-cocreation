@@ -12,17 +12,18 @@ cp .env.example .env
 # .env dosyasını kendi değerlerinle düzenle
 ```
 
-## 3. MySQL Veritabanını Oluştur
+## 3. PostgreSQL Veritabanını Oluştur
 ```sql
-CREATE DATABASE healthai_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE healthai_db;
 ```
+(Render kullanıyorsanız veritabanı genelde add-on ile birlikte oluşturulur; `DATABASE_URL` yeterlidir.)
 
 ## 4. Sunucuyu Başlat (Geliştirme)
 ```bash
 npm run dev
 ```
 Sunucu `http://localhost:3001` adresinde çalışır.  
-Tablolar ilk başlatmada otomatik oluşturulur (`sequelize.sync({ alter: true })`).
+Tablolar geliştirme ortamında veya `DB_AUTO_SYNC=true` ile otomatik oluşturulur (`sequelize.sync`).
 
 ## 5. Sağlık Kontrolü
 ```

@@ -1,19 +1,18 @@
 services:
   db:
-    image: mysql:8.4
+    image: postgres:16-alpine
     container_name: healthai-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: healthai_db
-      MYSQL_USER: healthai_user
-      MYSQL_PASSWORD: healthai_pass
+      POSTGRES_USER: healthai_user
+      POSTGRES_PASSWORD: healthai_pass
+      POSTGRES_DB: healthai_db
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+      test: ["CMD-SHELL", "pg_isready -U healthai_user -d healthai_db"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -30,8 +29,9 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
+      HOST: 0.0.0.0
       DB_HOST: db
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_NAME: healthai_db
       DB_USER: healthai_user
       DB_PASS: healthai_pass
@@ -50,7 +50,7 @@ services:
       DB_CONNECT_DELAY_MS: 3000
       DB_AUTO_SYNC: "true"
       DB_SYNC_ALTER: "true"
-      SKIP_EMAIL_VERIFICATION: "true"
+      DB_SSL: "false"
     ports:
       - "3001:3001"
 

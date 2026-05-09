@@ -28,10 +28,11 @@ const startServer = async () => {
     // io instance'ını app'e bağla — gerekirse controller'lardan erişilebilsin
     app.set('io', io);
 
-    httpServer.listen(env.port, () => {
-      console.log(`\n🚀 HEALTH AI Backend çalışıyor → http://localhost:${env.port}`);
+    const host = process.env.HOST || '0.0.0.0';
+    httpServer.listen(env.port, host, () => {
+      console.log(`\n🚀 HEALTH AI Backend çalışıyor → port ${env.port} (${host})`);
       console.log(`   Ortam: ${env.nodeEnv}`);
-      console.log(`   Sağlık kontrolü: http://localhost:${env.port}/health`);
+      console.log(`   Sağlık kontrolü: /health`);
       console.log(`   Socket.IO: aktif\n`);
     });
   } catch (err) {

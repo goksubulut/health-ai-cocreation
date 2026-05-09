@@ -1,0 +1,10 @@
+{
+  "development": {
+    "username": "healthai_user",
+    "password": "healthai_pass",
+    "database": "healthai_db",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "dialect": "postgres"
+  }
+}
