@@ -12,7 +12,8 @@ exports.getBookmarks = async (req, res) => {
       }],
       order: [['createdAt', 'DESC']],
     });
-    res.json(bookmarks.map(b => b.post).filter(Boolean));
+    const data = bookmarks.map((b) => b.post).filter(Boolean);
+    res.json({ data });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Sunucu hatası.' });

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useLocale } from '@/contexts/locale-context';
 
 /*
  * ProfileCompletion
@@ -10,14 +11,23 @@ import { CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
  *  onFieldClick — (fieldName: string) => void  (navigates/scrolls to that field)
  */
 
-const FIELDS = [
-  { key: 'firstName',   label: 'Ad',                 weight: 10 },
-  { key: 'lastName',    label: 'Soyad',              weight: 10 },
-  { key: 'institution', label: 'Kurum',              weight: 20 },
-  { key: 'city',        label: 'Şehir',              weight: 20 },
-  { key: 'country',     label: 'Ülke',               weight: 10 },
-  { key: 'expertise',   label: 'Uzmanlık Alanı',     weight: 30 },
+const FIELD_WEIGHTS = [
+  { key: 'firstName', weight: 10 },
+  { key: 'lastName', weight: 10 },
+  { key: 'institution', weight: 20 },
+  { key: 'city', weight: 20 },
+  { key: 'country', weight: 10 },
+  { key: 'expertise', weight: 30 },
 ];
+
+const FIELD_LABEL_KEYS = {
+  firstName: 'profileCompletionFieldFirstName',
+  lastName: 'profileCompletionFieldLastName',
+  institution: 'profileCompletionFieldInstitution',
+  city: 'profileCompletionFieldCity',
+  country: 'profileCompletionFieldCountry',
+  expertise: 'profileCompletionFieldExpertise',
+};
 
 const SIZE = 80;
 const STROKE = 6;
@@ -25,10 +35,10 @@ const R = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
 export function calculateProfileCompletion(user) {
-  if (!user) return { score: 0, missing: FIELDS };
+  if (!user) return { score: 0, missing: FIELD_WEIGHTS };
   let score = 0;
   const missing = [];
-  FIELDS.forEach(f => {
+  FIELD_WEIGHTS.forEach((f) => {
     const val = user[f.key] ?? user[f.key.replace(/([A-Z])/g, '_$1').toLowerCase()];
     if (val && String(val).trim()) {
       score += f.weight;
@@ -40,10 +50,24 @@ export function calculateProfileCompletion(user) {
 }
 
 export default function ProfileCompletion({ user, onFieldClick }) {
+  const { t } = useLocale();
   const { score, missing } = calculateProfileCompletion(user);
   const [animatedScore, setAnimatedScore] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const rafRef = useRef(null);
+
+  const labelForKey = (key) => {
+    const lk = FIELD_LABEL_KEYS[key];
+    const fallbacks = {
+      profileCompletionFieldFirstName: 'First name',
+      profileCompletionFieldLastName: 'Last name',
+      profileCompletionFieldInstitution: 'Institution',
+      profileCompletionFieldCity: 'City',
+      profileCompletionFieldCountry: 'Country',
+      profileCompletionFieldExpertise: 'Expertise area',
+    };
+    return lk ? t(lk, fallbacks[lk] ?? key) : key;
+  };
 
   useEffect(() => {
     const start = performance.now();
@@ -60,13 +84,25 @@ export default function ProfileCompletion({ user, onFieldClick }) {
 
   const strokeDashoffset = CIRCUMFERENCE * (1 - animatedScore / 100);
   const color = score === 100 ? 'var(--accent-emerald)' : score >= 70 ? '#84cc16' : score >= 40 ? 'var(--status-warning)' : 'var(--status-danger)';
-  const label = score === 100 ? 'Tam' : score >= 70 ? 'İyi' : score >= 40 ? 'Orta' : 'Eksik';
+  const levelLabel =
+    score === 100
+      ? t('profileCompletionLevelFull', 'Complete')
+      : score >= 70
+        ? t('profileCompletionLevelGood', 'Good')
+        : score >= 40
+          ? t('profileCompletionLevelFair', 'Fair')
+          : t('profileCompletionLevelLow', 'Incomplete');
+
+  const missingSummary = t(
+    'profileCompletionMissingSummary',
+    '{count} fields missing — improve your match quality',
+  ).replace('{count}', String(missing.length));
 
   if (score === 100) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--accent-emerald)' }}>
         <CheckCircle2 size={16} />
-        Profil %100 tamamlandı
+        {t('profileCompletionComplete', 'Profile 100% complete')}
       </div>
     );
   }
@@ -92,17 +128,17 @@ export default function ProfileCompletion({ user, onFieldClick }) {
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: '16px', fontWeight: 700, color, lineHeight: 1 }}>
               {animatedScore}%
             </span>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: 'var(--fg-subtle)', lineHeight: 1 }}>{label}</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: 'var(--fg-subtle)', lineHeight: 1 }}>{levelLabel}</span>
           </div>
         </div>
 
         {/* Text */}
         <div style={{ flex: 1 }}>
           <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 600, color: 'var(--fg)' }}>
-            Profil Tamamlama
+            {t('profileCompletionTitle', 'Profile completion')}
           </p>
           <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--fg-muted)' }}>
-            {missing.length > 0 ? `${missing.length} alan eksik — eşleştirme kaliteni artır` : 'Tüm alanlar dolu'}
+            {missing.length > 0 ? missingSummary : t('profileCompletionAllFilled', 'All fields filled')}
           </p>
         </div>
 
@@ -111,7 +147,7 @@ export default function ProfileCompletion({ user, onFieldClick }) {
           <button
             onClick={() => setExpanded(v => !v)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', padding: '4px' }}
-            aria-label="Eksik alanları göster/gizle"
+            aria-label={t('profileCompletionToggleAria', 'Show or hide missing fields')}
           >
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
@@ -147,7 +183,7 @@ export default function ProfileCompletion({ user, onFieldClick }) {
                 >
                   <AlertCircle size={13} style={{ color: color, flexShrink: 0 }} />
                   <span style={{ flex: 1, fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--fg)' }}>
-                    {f.label}
+                    {labelForKey(f.key)}
                   </span>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--fg-subtle)' }}>
                     +{f.weight}%

@@ -238,7 +238,10 @@ function Dashboard() {
     try {
       const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${a.accessToken}` } });
       const json = await res.json();
-      const apiBookmarks = res.ok && Array.isArray(json.data) ? json.data : [];
+      const rawList = res.ok
+        ? (Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [])
+        : [];
+      const apiBookmarks = rawList;
 
       // Ayrıca Discover/Board ekranında yerel olarak kaydedilmiş (mock vitrin) ilanları da ekle.
       let localShowcaseBookmarks = [];

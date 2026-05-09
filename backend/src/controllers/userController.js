@@ -74,27 +74,36 @@ const deleteAccount = async (req, res) => {
       return res.status(401).json({ message: 'Şifre hatalı.' });
     }
 
-    // Kişisel verileri anonimleştir — hesabı tamamen sil
-    await user.update({
-      email:        `deleted_${user.id}@removed.invalid`,
-      passwordHash: '[DELETED]',
-      firstName:    '[Silindi]',
-      lastName:     '[Silindi]',
-      institution:  null,
-      city:         null,
-      country:      null,
-      expertise:    null,
-      isActive:     false,
-      isVerified:   false,
-      verifyToken:  null,
-      resetToken:   null,
-      lastLogin:    null,
-    });
+    // Kişisel verileri anonimleştir — .edu validasyonu anonim e-postayı reddettiği için validate: false
+    await user.update(
+      {
+        email: `deleted_${user.id}@removed.invalid`,
+        passwordHash: '[DELETED]',
+        firstName: '[Silindi]',
+        lastName: '[Silindi]',
+        institution: null,
+        city: null,
+        country: null,
+        expertise: null,
+        isActive: false,
+        isVerified: false,
+        verifyToken: null,
+        verifyExpiry: null,
+        resetToken: null,
+        resetExpiry: null,
+        lastLogin: null,
+      },
+      { validate: false },
+    );
 
-    // Kullanıcının postlarını expired durumuna çek
     await Post.update(
       { status: 'expired' },
-      { where: { userId: user.id, status: ['draft', 'active', 'meeting_scheduled'] } }
+      {
+        where: {
+          userId: user.id,
+          status: { [Op.in]: ['draft', 'active', 'meeting_scheduled'] },
+        },
+      },
     );
 
     return res.json({ message: 'Hesabınız ve kişisel verileriniz silindi.' });
@@ -155,11 +164,11 @@ const exportData = async (req, res) => {
 };
 
 // ── GET /api/users/:id/public ──────────────────────────────────
-// Başka bir kullanıcının herkese açık profili (sadece doğrulanmış, aktif)
+// Başka bir kullanıcının herkese açık profili (aktif kullanıcılar; e-posta doğrulaması şart değil)
 const getPublicProfile = async (req, res) => {
   try {
     const user = await User.findOne({
-      where: { id: req.params.id, isActive: true, isVerified: true },
+      where: { id: req.params.id, isActive: true },
       attributes: ['id', 'firstName', 'lastName', 'institution', 'city', 'country', 'expertise', 'role', 'createdAt'],
     });
     if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });

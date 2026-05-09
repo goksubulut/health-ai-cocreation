@@ -8,6 +8,7 @@ import FaqPage from './pages/FaqPage';
 import TroubleshootingPage from './pages/TroubleshootingPage';
 import ContactSupportPage from './pages/ContactSupportPage';
 import AuthPage from './pages/AuthPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import Dashboard from './pages/Dashboard';
 import PostForm from './pages/PostForm';
 import Board from './pages/Board';
@@ -18,6 +19,7 @@ import MeetingDetail from './pages/MeetingDetail';
 import MndaAgreementPage from './pages/MndaAgreementPage';
 import ChatPage from './pages/ChatPage';
 import Profile from './pages/Profile';
+import UserPublicProfile from './pages/UserPublicProfile';
 import SettingsPage from './pages/SettingsPage';
 import HowMatchingWorks from './pages/HowMatchingWorks';
 import AdminLayout from './components/AdminLayout';
@@ -63,6 +65,7 @@ function App() {
             <Route path="help/troubleshooting" element={<TroubleshootingPage />} />
             <Route path="help/contact-support" element={<ContactSupportPage />} />
             <Route path="auth" element={<AuthPage />} />
+            <Route path="verify-email/:token" element={<VerifyEmailPage />} />
             <Route
               path="dashboard/engineer"
               element={
@@ -99,6 +102,7 @@ function App() {
             <Route path="board" element={<Board />} />
             <Route path="how-matching-works" element={<HowMatchingWorks />} />
             <Route path="post/:id" element={<PostDetail />} />
+            <Route path="user/:userId" element={<UserPublicProfile />} />
             <Route path="post/:id/meeting" element={<MeetingRequest />} />
             <Route path="legal/mnda" element={<MndaAgreementPage />} />
             <Route

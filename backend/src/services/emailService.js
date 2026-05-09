@@ -14,8 +14,10 @@ const transporter = nodemailer.createTransport({
 const send = async ({ to, subject, html }) => {
   try {
     await transporter.sendMail({ from: env.smtp.from, to, subject, html });
+    return true;
   } catch (err) {
-    // Email failures must not crash the request.
+    console.error('[emailService] SMTP send failed:', err?.message || err);
+    return false;
   }
 };
 
@@ -33,9 +35,9 @@ const formatDateTime = (d) => {
   return dt.toISOString();
 };
 
-const sendVerificationEmail = (user, token) => {
+const sendVerificationEmail = async (user, token) => {
   const url = `${env.frontendUrl}/verify-email/${token}`;
-  return send({
+  const ok = await send({
     to: user.email,
     subject: 'Verify your HEALTH AI account',
     html: `
@@ -53,11 +55,18 @@ const sendVerificationEmail = (user, token) => {
       </div>
     `,
   });
+  if (!ok && env.nodeEnv === 'development') {
+    const apiDirect = `${env.apiPublicUrl}/api/auth/verify-email/${token}`;
+    console.warn('[emailService] DEV — gönderici SMTP (SMTP_*) kurumsal/Gmail uygulama şifresi ile ayarlanmalı; alıcı adresi (@student.cankaya.edu.tr vb.) farklı olabilir.');
+    console.warn('[emailService] DEV — arayüz doğrulama (Vite çalışıyorsa):', url);
+    console.warn('[emailService] DEV — doğrudan API (tarayıcıda JSON görünür, doğrulama yine işlenir):', apiDirect);
+  }
+  return ok;
 };
 
-const sendPasswordResetEmail = (user, token) => {
+const sendPasswordResetEmail = async (user, token) => {
   const url = `${env.frontendUrl}/reset-password/${token}`;
-  return send({
+  const ok = await send({
     to: user.email,
     subject: 'Reset your HEALTH AI password',
     html: `
@@ -75,6 +84,10 @@ const sendPasswordResetEmail = (user, token) => {
       </div>
     `,
   });
+  if (!ok && env.nodeEnv === 'development') {
+    console.warn('[emailService] DEV — şifre sıfırlama e-postası gönderilemedi; link:\n  ', url);
+  }
+  return ok;
 };
 
 const userDisplayName = (u) => {

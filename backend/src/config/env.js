@@ -12,8 +12,12 @@ for (const key of required) {
   }
 }
 
+const port = parseInt(process.env.PORT, 10) || 3001;
+
 module.exports = {
-  port: parseInt(process.env.PORT) || 3001,
+  port,
+  /** E-posta logları ve doğrudan API doğrulama linki (örn. http://localhost:3001) */
+  apiPublicUrl: process.env.API_PUBLIC_URL || `http://localhost:${port}`,
   nodeEnv: process.env.NODE_ENV || 'development',
   dbAutoSync: process.env.DB_AUTO_SYNC === 'true' || process.env.NODE_ENV === 'development',
   dbSyncAlter: process.env.DB_SYNC_ALTER === 'false',

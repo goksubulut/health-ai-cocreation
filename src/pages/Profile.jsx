@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProfileCompletion, { calculateProfileCompletion } from '@/components/ui/profile-completion';
+import ProfileCompletion from '@/components/ui/profile-completion';
 import { useToast } from '@/components/ui/toast';
 import {
   UserX,

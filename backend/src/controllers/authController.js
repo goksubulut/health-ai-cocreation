@@ -63,7 +63,7 @@ const register = async (req, res) => {
       verifyExpiry,
     });
 
-    await sendVerificationEmail(user, verifyToken);
+    const emailSent = await sendVerificationEmail(user, verifyToken);
 
     await logActivity({
       userId: user.id,
@@ -74,7 +74,12 @@ const register = async (req, res) => {
     });
 
     return res.status(201).json({
-      message: 'Verification email sent. Please check your inbox.',
+      message: emailSent
+        ? 'Verification email sent. Please check your inbox (and spam).'
+        : env.nodeEnv === 'development'
+          ? 'Account created, but the verification email could not be sent (SMTP). Check the backend terminal for a DEV verification link.'
+          : 'Account created, but we could not send the verification email. Please try again later or contact support.',
+      emailSent,
     });
   } catch (err) {
     return res.status(500).json({ message: 'Internal server error.' });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -242,8 +242,34 @@ function PostDetail() {
     ? `${post.owner.first_name || ''} ${post.owner.last_name || ''}`.trim() || 'Author'
     : 'Author';
 
+  const meetingStatusLabel = useMemo(() => {
+    if (!activeRequestStatus) return '';
+    const keyMap = {
+      pending: 'statusPending',
+      accepted: 'statusAccepted',
+      declined: 'statusDeclined',
+      cancelled: 'statusCancelled',
+      scheduled: 'statusScheduled',
+    };
+    const key = keyMap[activeRequestStatus];
+    return key ? t(key, activeRequestStatus) : activeRequestStatus;
+  }, [activeRequestStatus, t]);
+
+  const projectStageDisplay = useMemo(() => {
+    if (!post?.project_stage) return '—';
+    const map = {
+      idea: 'postFormStageIdea',
+      concept_validation: 'postFormStageValidation',
+      prototype: 'postFormStagePrototype',
+      pilot: 'postFormStagePilot',
+      pre_deployment: 'postFormStagePreDeployment',
+    };
+    const key = map[post.project_stage];
+    return key ? t(key, STAGE_LABELS[post.project_stage] || post.project_stage) : STAGE_LABELS[post.project_stage] || post.project_stage;
+  }, [post, t]);
+
   const tags = post?.domain
-    ? post.domain.split(/[,;]/).map((t) => t.trim()).filter(Boolean).slice(0, 4)
+    ? post.domain.split(/[,;]/).map((tag) => tag.trim()).filter(Boolean).slice(0, 4)
     : [];
 
   const handleInterest = async () => {
@@ -449,6 +475,17 @@ function PostDetail() {
               <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight drop-shadow-xl text-white leading-tight">
                 {post.title}
               </h1>
+              {post.owner?.id && !post.isMock && (
+                <p className="text-sm text-white/80 mt-3 relative z-10">
+                  <span className="text-white/55">{t('postDetailPostedBy', 'Posted by')}: </span>
+                  <Link
+                    to={`/user/${post.owner.id}`}
+                    className="font-semibold text-white underline underline-offset-2 hover:text-white"
+                  >
+                    {ownerDisplay}
+                  </Link>
+                </p>
+              )}
             </div>
           </div>
 
@@ -464,7 +501,7 @@ function PostDetail() {
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                    Expertise
+                    {t('postDetailMetaExpertise', 'Expertise')}
                   </div>
                   <div className="font-medium text-foreground">
                     {post.required_expertise || '—'}
@@ -477,10 +514,10 @@ function PostDetail() {
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                    Project stage
+                    {t('postDetailMetaProjectStage', 'Project stage')}
                   </div>
                   <div className="font-medium text-foreground">
-                    {STAGE_LABELS[post.project_stage] || post.project_stage || '—'}
+                    {projectStageDisplay}
                   </div>
                 </div>
               </div>
@@ -490,7 +527,7 @@ function PostDetail() {
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                    Location
+                    {t('postDetailMetaLocation', 'Location')}
                   </div>
                   <div className="font-medium text-foreground">
                     {[post.city, post.country].filter(Boolean).join(', ') || '—'}
@@ -500,7 +537,9 @@ function PostDetail() {
             </div>
 
             <div className="prose prose-zinc dark:prose-invert max-w-none">
-              <h3 className="font-serif text-2xl font-bold text-foreground mb-4">Project overview</h3>
+              <h3 className="font-serif text-2xl font-bold text-foreground mb-4">
+                {t('postDetailProjectOverview', 'Project overview')}
+              </h3>
               <p className="text-muted-foreground text-lg leading-relaxed font-mono tracking-tight whitespace-pre-wrap">
                 {post.description}
               </p>
@@ -551,20 +590,47 @@ function PostDetail() {
             <div className="mb-8">
               <h3 className="font-sans font-bold text-2xl mb-2 text-foreground tracking-tight">
                 {flowStep === 'slots' || flowStep === 'success'
-                  ? 'Propose meeting times'
-                  : 'Express interest'}
+                  ? t('postDetailProposeMeetingTimes', 'Propose meeting times')
+                  : t('postDetailExpressInterest', 'Express interest')}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {flowStep === 'slots' || flowStep === 'success' ? (
                   <>
-                    Add up to five time options for{' '}
-                    <strong className="text-foreground">{ownerDisplay}</strong>. They will be notified after
-                    you save.
+                    {(() => {
+                      const tpl = t(
+                        'postDetailSlotsBlurb',
+                        'Add up to five time options for {name}. They will be notified after you save.',
+                      );
+                      const parts = tpl.split('{name}');
+                      return parts.length > 1 ? (
+                        <>
+                          {parts[0]}
+                          <strong className="text-foreground">{ownerDisplay}</strong>
+                          {parts.slice(1).join('{name}')}
+                        </>
+                      ) : (
+                        tpl
+                      );
+                    })()}
                   </>
                 ) : (
                   <>
-                    Initiate contact with <strong className="text-foreground">{ownerDisplay}</strong> to
-                    propose a technical review meeting.
+                    {(() => {
+                      const tpl = t(
+                        'postDetailContactBlurb',
+                        'Initiate contact with {name} to propose a technical review meeting.',
+                      );
+                      const parts = tpl.split('{name}');
+                      return parts.length > 1 ? (
+                        <>
+                          {parts[0]}
+                          <strong className="text-foreground">{ownerDisplay}</strong>
+                          {parts.slice(1).join('{name}')}
+                        </>
+                      ) : (
+                        tpl
+                      );
+                    })()}
                   </>
                 )}
               </p>
@@ -642,14 +708,17 @@ function PostDetail() {
             {flowStep === 'interest' && canStartRequest && (
               <div className="mb-6">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
-                  Message (optional)
+                  {t('postDetailMessageOptional', 'Message (optional)')}
                 </label>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={3}
                   maxLength={2000}
-                  placeholder="Briefly introduce yourself or your interest…"
+                  placeholder={t(
+                    'postDetailMessagePlaceholder',
+                    'Briefly introduce yourself or your interest…',
+                  )}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   disabled={submitting || interestSent}
                 />
@@ -725,7 +794,7 @@ function PostDetail() {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="animate-spin" size={16} /> Sending…
+                    <Loader2 className="animate-spin" size={16} /> {t('postDetailSending', 'Sending…')}
                   </>
                 ) : (
                   <>
@@ -737,9 +806,10 @@ function PostDetail() {
 
             {flowStep === 'interest' && hasActiveRequest && (
               <p className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-                You already have an active meeting request for this post
-                {activeRequestStatus ? ` (${activeRequestStatus})` : ''}. You can create a new proposal
-                after this request is cancelled, declined, or completed.
+                {t(
+                  'postDetailHasActiveMeetingWarning',
+                  'You already have an active meeting request for this post ({status}). You can create a new proposal after this request is cancelled, declined, or completed.',
+                ).replace('{status}', meetingStatusLabel || activeRequestStatus || '—')}
               </p>
             )}
 
@@ -756,7 +826,7 @@ function PostDetail() {
                   </>
                 ) : (
                   <>
-                    Propose slots <CalendarClock size={16} />
+                    {t('postDetailProposeSlots', 'Propose slots')} <CalendarClock size={16} />
                   </>
                 )}
               </button>

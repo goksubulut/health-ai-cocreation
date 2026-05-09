@@ -97,8 +97,18 @@ function Board() {
     try {
       const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${token}` } });
       const json = await res.json();
-      if (res.ok && Array.isArray(json.data)) {
-        setBookmarkIds(json.data.map((b) => String(b.postId ?? b.post_id ?? b.id)));
+      const list = res.ok
+        ? (Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [])
+        : [];
+      if (res.ok) {
+        setBookmarkIds(
+          list
+            .map((item) => {
+              const post = item?.post ?? item;
+              return String(post?.id ?? item?.postId ?? item?.post_id ?? '');
+            })
+            .filter(Boolean),
+        );
       }
     } catch { /* silent */ }
   };
