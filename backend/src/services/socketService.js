@@ -7,6 +7,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
+const corsOptions = require('../config/corsOptions');
 const {
   Conversation,
   ConversationParticipant,
@@ -43,7 +44,7 @@ const userRoom = (userId) => `user:${userId}`;
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: env.frontendUrl,
+      origin: corsOptions.getAllowedOrigins(),
       methods: ['GET', 'POST'],
       credentials: true,
     },

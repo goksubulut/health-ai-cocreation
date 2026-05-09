@@ -1,5 +1,10 @@
 require('./src/config/env'); // İlk önce env doğrulaması
 
+const pkg = require('./package.json');
+console.log(
+  `[HEALTH AI] Backend v${pkg.version} · PostgreSQL (pg) · RENDER=${process.env.RENDER ?? '—'}`,
+);
+
 const http = require('http');
 const app = require('./src/app');
 const { connectDB, sequelize } = require('./src/config/database');

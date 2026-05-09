@@ -21,8 +21,42 @@ if (!databaseUrl) {
 const parsedPort = parseInt(process.env.PORT, 10);
 const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 3001;
 
-/** Render managed PostgreSQL için genelde DB_SSL=true gerekir (TLS). */
-const dbSsl = process.env.DB_SSL === 'true';
+/**
+ * PostgreSQL TLS (Render vb. uzak hostlar için şart).
+ * - DB_SSL=true / false ile kesin ayar
+ * - Belirsizse: DATABASE_URL uzak bir hosta benziyorsa SSL açılır (localhost hariç)
+ */
+function resolveDbSsl(url, host) {
+  const explicit = process.env.DB_SSL;
+  if (explicit === 'true') return true;
+  if (explicit === 'false') return false;
+
+  // Render: PostgreSQL iç/dış URL bazen "render.com" içermez; TLS yine gerekir.
+  if (process.env.RENDER === 'true') {
+    if (url && typeof url === 'string') {
+      const lower = url.toLowerCase();
+      if (lower.includes('@localhost') || lower.includes('127.0.0.1')) return false;
+      return true;
+    }
+    if (host && typeof host === 'string' && !/^(localhost|127\.0\.0\.1)$/i.test(host.trim())) {
+      return true;
+    }
+  }
+
+  if (url && typeof url === 'string') {
+    const lower = url.toLowerCase();
+    if (lower.includes('@localhost') || lower.includes('@127.0.0.1')) return false;
+    const remoteHint =
+      /\.render\.com|amazonaws\.com|neon\.tech|supabase\.co|digitalocean\.com|azure\.com/i;
+    if (remoteHint.test(lower)) return true;
+  }
+  if (host && typeof host === 'string') {
+    return /\.render\.com|amazonaws\.com|neon\.tech|supabase\.co/i.test(host);
+  }
+  return false;
+}
+
+const dbSsl = resolveDbSsl(databaseUrl, process.env.DB_HOST);
 
 module.exports = {
   port,

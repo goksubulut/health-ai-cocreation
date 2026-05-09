@@ -46,6 +46,13 @@ const connectDB = async () => {
   const maxRetries = parseInt(process.env.DB_CONNECT_RETRIES || '20', 10);
   const retryDelayMs = parseInt(process.env.DB_CONNECT_DELAY_MS || '3000', 10);
 
+  const connHint = env.db.databaseUrl
+    ? 'DATABASE_URL'
+    : `host=${env.db.host ?? '?'} port=${env.db.port}`;
+  console.log(
+    `[database] PostgreSQL dialect=postgres ssl=${env.db.ssl ? 'on' : 'off'} (${connHint})`,
+  );
+
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       await sequelize.authenticate();

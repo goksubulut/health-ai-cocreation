@@ -101,8 +101,11 @@ docker compose down -v
 
 ## Render.com
 
-1. **PostgreSQL** eklentisi oluştur; ortam değişkeni olarak **`DATABASE_URL`** otomatik eklenir (backend bunu kullanır). Ayrıca **`DB_SSL=true`** ekleyin (TLS).
-2. **Web Service** için `PORT` Render tarafından atanır; ekstra `PORT=10000` gerekmez. Sunucu **`0.0.0.0`** üzerinde dinler.
-3. Diğer zorunlu değişkenler: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SMTP_*`, `FRONTEND_URL` (canlı site kök URL’si). İsteğe bağlı: `API_PUBLIC_URL` (backend kök URL’si).
-4. `DATABASE_URL` kullanıldığında **`DB_HOST` / `DB_NAME` / …** girmeniz gerekmez; Render’daki Secret’lar yeterlidir.
-5. İlk kurulumda tabloların oluşması için geçici olarak **`DB_AUTO_SYNC=true`** verebilirsiniz; şema oturduktan sonra kapatın (üretimde `alter` kullanılmıyor).
+1. **PostgreSQL** eklentisi oluştur; **`DATABASE_URL`** genelde Web Service’e otomatik bağlanır. TLS: `DATABASE_URL` içinde `render.com` (veya benzeri uzak host) varsa uygulama **SSL’i otomatik açar**; yine de **`DB_SSL=true`** koyabilirsiniz, **`DB_SSL=false`** sadece özel (ör. TLS’siz test) içindir.
+2. Eski **MySQL** döneminden kalan env’leri silin: `DB_PORT=3306`, yanlış `DB_HOST` vb. PostgreSQL ile **çakışıyorsa** bağlantı hatası verir. Ayrı değişken kullanıyorsanız: **`DB_PORT=5432`**, host PostgreSQL ekranındaki hostname olmalı.
+3. **PORT**: Render kendi `PORT` değişkenini enjekte eder; manuel `PORT=10000` çoğu zaman gerekmez. Sunucu **`0.0.0.0`** dinler.
+4. Zorunlu: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SMTP_*`, `FRONTEND_URL`. İsteğe bağlı: `API_PUBLIC_URL`.
+5. `DATABASE_URL` varken **`DB_HOST` / `DB_NAME` / …** girmeniz genelde gerekmez; aynı isimle **eski** değişkenler tanımlıysa kaldırın veya PostgreSQL ile uyumlu yapın.
+6. İlk deploy’da tablolar için geçici **`DB_AUTO_SYNC=true`**, şema oturunca **`DB_AUTO_SYNC=false`** (veya kaldırın) önerilir.
+7. Logda hâlâ **“MySQL”** veya **`Backend v1.0.0`** görüyorsanız GitHub’a son kod gitmemiş veya Render **yanlış kök dizinden** build alıyordur. Kontrol: GitHub’da `health-ai-cocreation/backend/src/config/database.js` dosyasında **`PostgreSQL bağlantı`** ifadesi olmalı. Repo kökünüz `seng384_project` ise Render **Root Directory** = `health-ai-cocreation` olmalı; Dockerfile bu klasörde.
+8. Yeni sürüm açılışta şu satırları yazdırır: **`[HEALTH AI] Backend v1.1.0 · PostgreSQL (pg) · RENDER=…`** ve **`[database] PostgreSQL dialect=postgres ssl=…`**. Bunlar yoksa eski imaj çalışıyordur.
