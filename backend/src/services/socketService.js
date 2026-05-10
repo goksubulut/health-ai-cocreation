@@ -44,7 +44,10 @@ const userRoom = (userId) => `user:${userId}`;
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: corsOptions.getAllowedOrigins(),
+      origin: (origin, cb) => {
+        if (corsOptions.matchesAllowedOrigin(origin)) cb(null, true);
+        else cb(null, false);
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
