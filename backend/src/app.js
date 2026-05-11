@@ -18,6 +18,28 @@ const chatRoutes         = require('./routes/chat');
 
 const app = express();
 
+// Reverse proxy (Railway, Render, Fly, Nginx) arkasında X-Forwarded-* ve express-rate-limit için gerekli.
+// TRUST_PROXY=false ile tamamen kapatılabilir (ör. doğrudan Node’a TLS’siz bağlanan özel kurulum).
+function resolveTrustProxy() {
+  const tp = process.env.TRUST_PROXY;
+  if (tp === 'false' || tp === '0') return false;
+  if (tp === 'true' || tp === '1') return 1;
+  const trimmed = tp && String(tp).trim();
+  if (trimmed && /^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+
+  if (process.env.NODE_ENV === 'production') return 1;
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) return 1;
+  if (process.env.RENDER === 'true' || process.env.RENDER_SERVICE_ID) return 1;
+  if (process.env.FLY_APP_NAME) return 1;
+
+  return false;
+}
+
+const trustProxyHops = resolveTrustProxy();
+if (trustProxyHops !== false) {
+  app.set('trust proxy', trustProxyHops);
+}
+
 // ── Güvenlik başlıkları ───────────────────────────────────────
 app.use(
   helmet({

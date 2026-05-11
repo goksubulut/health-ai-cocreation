@@ -9,6 +9,7 @@ const {
 const { sequelize } = require('../config/database');
 const { logActivity, hashIp } = require('../services/logService');
 const {
+  runEmailInBackground,
   sendMeetingRequestNotification,
   sendMeetingAcceptedNotification,
   sendMeetingDeclinedNotification,
@@ -185,7 +186,7 @@ const createMeetingRequest = async (req, res) => {
 
     const requester = await User.findByPk(requesterId, { attributes: USER_ATTRS });
 
-    await sendMeetingRequestNotification(post.owner, requester, post);
+    runEmailInBackground('meeting_request', sendMeetingRequestNotification(post.owner, requester, post));
     await createNotification(
       post.userId, 'meeting_request',
       'Yeni toplantı isteği',
@@ -328,7 +329,7 @@ const acceptMeetingRequest = async (req, res) => {
 
     const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
     if (requester && meeting.post) {
-      await sendMeetingAcceptedNotification(requester, meeting.post);
+      runEmailInBackground('meeting_accepted', sendMeetingAcceptedNotification(requester, meeting.post));
     }
     await createNotification(
       meeting.requesterId, 'meeting_accepted',
@@ -398,7 +399,7 @@ const declineMeetingRequest = async (req, res) => {
 
     const requester = await User.findByPk(meeting.requesterId, { attributes: USER_ATTRS });
     if (requester && meeting.post) {
-      await sendMeetingDeclinedNotification(requester, meeting.post);
+      runEmailInBackground('meeting_declined', sendMeetingDeclinedNotification(requester, meeting.post));
     }
     await createNotification(
       meeting.requesterId, 'meeting_declined',
@@ -493,7 +494,7 @@ const proposeSlots = async (req, res) => {
     const recipientId = otherPartyId(meeting, req.user.id);
     const recipient = await User.findByPk(recipientId, { attributes: USER_ATTRS });
     if (recipient) {
-      await sendSlotProposedNotification(recipient, meeting, created);
+      runEmailInBackground('slot_proposed', sendSlotProposedNotification(recipient, meeting, created));
     }
 
     return res.status(201).json({ data: created.map((c) => serializeTimeSlot(c)) });
@@ -705,7 +706,10 @@ const confirmSlot = async (req, res) => {
     const post = await Post.findByPk(meeting.postId);
 
     if (requester && postOwner && post) {
-      await sendMeetingScheduledNotification(requester, postOwner, slot.slotDatetime, post);
+      runEmailInBackground(
+        'meeting_scheduled',
+        sendMeetingScheduledNotification(requester, postOwner, slot.slotDatetime, post)
+      );
     }
     const scheduledAt = new Date(slot.slotDatetime).toLocaleString('tr-TR');
     await Promise.all([
@@ -784,7 +788,7 @@ const cancelMeetingRequest = async (req, res) => {
     }
 
     if (recipient) {
-      await sendMeetingCancelledNotification(recipient, meeting);
+      runEmailInBackground('meeting_cancelled', sendMeetingCancelledNotification(recipient, meeting));
     }
 
     await logActivity({

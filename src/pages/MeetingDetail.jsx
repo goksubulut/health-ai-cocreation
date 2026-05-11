@@ -9,6 +9,10 @@ import {
   Check,
   X,
   Trash2,
+  User,
+  Building2,
+  MapPin,
+  Briefcase,
 } from 'lucide-react';
 import { getAuth, getAuthChangedEventName } from '@/lib/auth';
 import { buildGoogleMeetEventDeeplink } from '@/lib/googleCalendar';
@@ -28,6 +32,9 @@ function MeetingDetail() {
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editSlotValue, setEditSlotValue] = useState('');
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [requesterPreview, setRequesterPreview] = useState(null);
+  const [requesterPreviewLoading, setRequesterPreviewLoading] = useState(false);
+  const [requesterPreviewErr, setRequesterPreviewErr] = useState('');
 
   const auth = getAuth();
   const { toast } = useToast();
@@ -64,6 +71,51 @@ function MeetingDetail() {
     window.addEventListener(ev, load);
     return () => window.removeEventListener(ev, load);
   }, [load]);
+
+  useEffect(() => {
+    if (!m?.requester_id || uid == null || m.post_owner_id !== uid) {
+      setRequesterPreview(null);
+      setRequesterPreviewLoading(false);
+      setRequesterPreviewErr('');
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setRequesterPreviewLoading(true);
+      setRequesterPreviewErr('');
+      try {
+        const headers = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(`/api/users/${m.requester_id}/public`, { headers });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(
+            json.message ||
+              t('meetingRequesterProfileUnavailable', 'This profile is not available.')
+          );
+        }
+        setRequesterPreview({
+          user: json.user,
+          posts: Array.isArray(json.posts) ? json.posts : [],
+        });
+      } catch (e) {
+        if (!cancelled) {
+          setRequesterPreview(null);
+          setRequesterPreviewErr(
+            e instanceof Error
+              ? e.message
+              : t('meetingRequesterProfileUnavailable', 'This profile is not available.')
+          );
+        }
+      } finally {
+        if (!cancelled) setRequesterPreviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [m?.requester_id, m?.post_owner_id, uid, token, t]);
 
   const isOwner = m && uid != null && m.post_owner_id === uid;
   const isRequester = m && uid != null && m.requester_id === uid;
@@ -349,6 +401,120 @@ function MeetingDetail() {
                 </div>
               )}
             </motion.header>
+
+            {isOwner && m.requester_id && (
+              <section className="rounded-2xl border border-border/60 bg-card/50 p-6 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-xl flex items-center gap-2">
+                      <User className="text-muted-foreground shrink-0" size={20} aria-hidden />
+                      {t('meetingRequesterProfileTitle', 'Requester profile')}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+                      {t(
+                        'meetingRequesterProfileDesc',
+                        'Review their public profile and active listings before you accept or decline.'
+                      )}
+                    </p>
+                  </div>
+                  <Link
+                    to={`/user/${m.requester_id}`}
+                    className="text-sm font-medium text-primary hover:underline shrink-0"
+                  >
+                    {t('meetingRequesterProfileOpenFull', 'Open full profile')}
+                  </Link>
+                </div>
+                {requesterPreviewLoading && (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="animate-spin" size={16} aria-hidden />
+                    {t('meetingRequesterProfileLoading', 'Loading profile…')}
+                  </p>
+                )}
+                {!requesterPreviewLoading && requesterPreviewErr && (
+                  <p className="text-sm text-destructive">{requesterPreviewErr}</p>
+                )}
+                {!requesterPreviewLoading && !requesterPreviewErr && requesterPreview?.user && (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary">
+                        {requesterPreview.user.role === 'healthcare'
+                          ? t('chatRoleHealthcare', 'Healthcare')
+                          : requesterPreview.user.role === 'engineer'
+                            ? t('chatRoleEngineer', 'Engineer')
+                            : requesterPreview.user.role === 'admin'
+                              ? 'Admin'
+                              : requesterPreview.user.role || '—'}
+                      </span>
+                    </div>
+                    <div className="grid gap-3 text-sm">
+                      {requesterPreview.user.institution && (
+                        <div className="flex items-start gap-3">
+                          <Building2 className="shrink-0 mt-0.5 text-muted-foreground" size={18} aria-hidden />
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              {t('userPublicProfileInstitution', 'Institution')}
+                            </div>
+                            <div className="text-foreground font-medium">{requesterPreview.user.institution}</div>
+                          </div>
+                        </div>
+                      )}
+                      {(requesterPreview.user.city || requesterPreview.user.country) && (
+                        <div className="flex items-start gap-3">
+                          <MapPin className="shrink-0 mt-0.5 text-muted-foreground" size={18} aria-hidden />
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              {t('postFormLocationLabel', 'Location')}
+                            </div>
+                            <div className="text-foreground font-medium">
+                              {[requesterPreview.user.city, requesterPreview.user.country].filter(Boolean).join(', ')}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {requesterPreview.user.expertise && (
+                        <div className="flex items-start gap-3">
+                          <Briefcase className="shrink-0 mt-0.5 text-muted-foreground" size={18} aria-hidden />
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              {t('userPublicProfileExpertise', 'Expertise')}
+                            </div>
+                            <div className="text-foreground font-medium whitespace-pre-wrap">
+                              {requesterPreview.user.expertise}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                        {t('meetingRequesterProfilePosts', 'Their active listings')}
+                      </h3>
+                      {requesterPreview.posts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('userPublicProfileNoPosts', 'No active listings yet.')}
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {requesterPreview.posts.map((p) => (
+                            <li key={p.id}>
+                              <Link
+                                to={`/post/${p.id}`}
+                                className="block rounded-xl border border-border/50 bg-background/55 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+                              >
+                                <p className="font-medium text-foreground text-sm">{p.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {[p.domain, p.city].filter(Boolean).join(' · ') || '—'}
+                                </p>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
 
             {/* Meeting Timeline */}
             <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm">

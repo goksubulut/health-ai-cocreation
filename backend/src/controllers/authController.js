@@ -3,7 +3,11 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { User } = require('../models');
 const env = require('../config/env');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
+const {
+  runEmailInBackground,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} = require('../services/emailService');
 const { logActivity } = require('../services/logService');
 
 const generateAccessToken = (user) =>
@@ -63,7 +67,7 @@ const register = async (req, res) => {
       verifyExpiry,
     });
 
-    const emailSent = await sendVerificationEmail(user, verifyToken);
+    runEmailInBackground('register_verification', sendVerificationEmail(user, verifyToken));
 
     await logActivity({
       userId: user.id,
@@ -74,12 +78,11 @@ const register = async (req, res) => {
     });
 
     return res.status(201).json({
-      message: emailSent
-        ? 'Verification email sent. Please check your inbox (and spam).'
-        : env.nodeEnv === 'development'
-          ? 'Account created, but the verification email could not be sent (SMTP). Check the backend terminal for a DEV verification link.'
-          : 'Account created, but we could not send the verification email. Please try again later or contact support.',
-      emailSent,
+      message:
+        env.nodeEnv === 'development'
+          ? 'Account created. A verification email is being sent; if SMTP fails, check the backend terminal for a DEV link.'
+          : 'Account created. If your email address is correct, you will receive a verification link shortly (check spam as well).',
+      emailQueued: true,
     });
   } catch (err) {
     return res.status(500).json({ message: 'Internal server error.' });
@@ -213,7 +216,7 @@ const forgotPassword = async (req, res) => {
         resetToken,
         resetExpiry,
       });
-      await sendPasswordResetEmail(user, resetToken);
+      runEmailInBackground('password_reset', sendPasswordResetEmail(user, resetToken));
     }
 
     return res.status(200).json({

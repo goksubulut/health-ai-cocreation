@@ -1,6 +1,13 @@
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
+/** Caps long hangs when SMTP host/port is wrong or blocked (default nodemailer ~2m). */
+const smtpConnectionTimeoutMs = (() => {
+  const raw = parseInt(process.env.SMTP_CONNECTION_TIMEOUT_MS, 10);
+  const n = Number.isFinite(raw) && raw > 0 ? raw : 15000;
+  return Math.min(Math.max(n, 3000), 120000);
+})();
+
 const transporter = nodemailer.createTransport({
   host: env.smtp.host,
   port: env.smtp.port,
@@ -9,6 +16,8 @@ const transporter = nodemailer.createTransport({
     user: env.smtp.user,
     pass: env.smtp.pass,
   },
+  connectionTimeout: smtpConnectionTimeoutMs,
+  socketTimeout: smtpConnectionTimeoutMs,
 });
 
 const send = async ({ to, subject, html }) => {
@@ -20,6 +29,17 @@ const send = async ({ to, subject, html }) => {
     return false;
   }
 };
+
+/**
+ * Queue outbound mail so HTTP handlers return immediately (Render/Railway SMTP latency).
+ * @param {string} label
+ * @param {Promise<unknown>} mailPromise
+ */
+function runEmailInBackground(label, mailPromise) {
+  void Promise.resolve(mailPromise).catch((err) => {
+    console.error(`[emailService] async "${label}":`, err?.message || err);
+  });
+}
 
 const escapeHtml = (s) =>
   String(s)
@@ -200,6 +220,7 @@ const sendMeetingCancelledNotification = (recipient, meetingRequest) => {
 };
 
 module.exports = {
+  runEmailInBackground,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendMeetingRequestNotification,
